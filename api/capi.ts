@@ -3,9 +3,10 @@ import { createHash } from 'crypto'
 
 // Conversions API server-side de Meta — espeja los eventos del Pixel del navegador
 // para mejorar el match rate y sobrevivir a bloqueadores de anuncios / ITP.
-// El access token vive solo en env vars de Vercel, nunca en el bundle del cliente.
-const PIXEL_ID = '1791691808756260'
-const GRAPH_VERSION = 'v21.0'
+// El access token vive solo en env vars de Vercel (META_CAPI_TOKEN), nunca en el bundle del cliente.
+// El pixel id puede venir de META_PIXEL_ID; si no está, se usa el Pixel de ALCO.
+const DEFAULT_PIXEL_ID = '1791691808756260'
+const GRAPH_VERSION = 'v23.0'
 
 function sha256(value: string): string {
   return createHash('sha256').update(value.trim().toLowerCase()).digest('hex')
@@ -22,12 +23,12 @@ interface CapiRequestBody {
   user_data?: {
     email?: string
     phone?: string
+    firstName?: string
+    lastName?: string
     fbc?: string
     fbp?: string
   }
   custom_data?: Record<string, unknown>
-  // Solo para pruebas manuales en Events Manager → Probar eventos; la app nunca lo envía
-  test_event_code?: string
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -36,6 +37,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
+  const pixelId = process.env.META_PIXEL_ID || DEFAULT_PIXEL_ID
   const token = process.env.META_CAPI_TOKEN
   if (!token) {
     // Token no configurado todavía — no bloquear al cliente, solo omitir el envío.
@@ -43,9 +45,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const { event_name, event_id, event_source_url, user_data = {}, custom_data = {}, test_event_code } =
+  const { event_name, event_id, event_source_url, user_data = {}, custom_data = {} } =
     (req.body ?? {}) as CapiRequestBody
-  const testEventCode = test_event_code || process.env.META_CAPI_TEST_EVENT_CODE
+  // Solo para pruebas en Events Manager → Probar eventos. Nunca se acepta desde el navegador.
+  const testEventCode = process.env.META_CAPI_TEST_EVENT_CODE
 
   if (!event_name || !event_id) {
     res.status(400).json({ error: 'event_name y event_id son requeridos' })
@@ -55,6 +58,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const forwardedFor = (req.headers['x-forwarded-for'] as string | undefined)
     ?.split(',')[0]
     ?.trim()
+
+  const phone = user_data.phone ? normalizePhone(user_data.phone) : ''
 
   const payload = {
     data: [
@@ -66,7 +71,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         action_source: 'website',
         user_data: {
           em: user_data.email ? [sha256(user_data.email)] : undefined,
-          ph: user_data.phone ? [sha256(normalizePhone(user_data.phone))] : undefined,
+          ph: phone ? [sha256(phone)] : undefined,
+          fn: user_data.firstName ? [sha256(user_data.firstName)] : undefined,
+          ln: user_data.lastName ? [sha256(user_data.lastName)] : undefined,
           fbc: user_data.fbc || undefined,
           fbp: user_data.fbp || undefined,
           client_ip_address: forwardedFor,
@@ -80,7 +87,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const metaRes = await fetch(
-      `https://graph.facebook.com/${GRAPH_VERSION}/${PIXEL_ID}/events?access_token=${token}`,
+      `https://graph.facebook.com/${GRAPH_VERSION}/${pixelId}/events?access_token=${token}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

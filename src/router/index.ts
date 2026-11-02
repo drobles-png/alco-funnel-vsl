@@ -19,6 +19,8 @@ declare module 'vue-router' {
     ogDescription: string
     ogUrl: string
     jsonLd?: object[]
+    /** Pasos privados del funnel (después del registro): no se indexan */
+    noindex?: boolean
   }
 }
 
@@ -54,6 +56,7 @@ const router = createRouter({
         ogTitle: 'Mira el video | ALCO',
         ogDescription: 'Cómo arrancar tu negocio de fumigación con drones, sin adornos.',
         ogUrl: `${SITE_URL}/ver-video`,
+        noindex: true,
       } satisfies RouteMeta,
     },
     {
@@ -68,6 +71,7 @@ const router = createRouter({
         ogTitle: 'Agenda tu reunión | ALCO',
         ogDescription: 'Elige tu horario y conversemos de tu caso.',
         ogUrl: `${SITE_URL}/agendar`,
+        noindex: true,
       } satisfies RouteMeta,
     },
     {
@@ -82,6 +86,7 @@ const router = createRouter({
         ogTitle: 'Reunión confirmada | ALCO',
         ogDescription: 'Tu reunión con ALCO está reservada. Te escribiremos pronto.',
         ogUrl: `${SITE_URL}/cita-confirmada`,
+        noindex: true,
       } satisfies RouteMeta,
     },
     {
@@ -96,6 +101,7 @@ const router = createRouter({
         ogTitle: 'Todavía no es el momento | ALCO',
         ogDescription: 'Sigue aprendiendo con ALCO mientras tanto.',
         ogUrl: `${SITE_URL}/sin-espacio`,
+        noindex: true,
       } satisfies RouteMeta,
     },
     {
@@ -131,6 +137,8 @@ const router = createRouter({
 })
 
 // ── SEO dinámico por ruta ──────────────────────────────────────────────────────
+const PUBLIC_ROBOTS = 'index, follow, max-image-preview:large'
+
 const setMeta = (name: string, content: string) => {
   let el = document.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)
   if (!el) {
@@ -176,6 +184,8 @@ router.afterEach((to, from) => {
   setOgMeta('twitter:title', meta.ogTitle ?? meta.title ?? '')
   setOgMeta('twitter:description', meta.ogDescription ?? meta.description ?? '')
   setCanonical(meta.canonical ?? '')
+  // Pasos privados: noindex; rutas públicas: se restaura el valor de index.html
+  setMeta('robots', meta.noindex ? 'noindex, nofollow' : PUBLIC_ROBOTS)
 })
 
 export default router
