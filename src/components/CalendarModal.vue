@@ -117,6 +117,8 @@ ${QUESTIONS.map((q) => `${q.noteLabel}: ${labelFor(q.key, a[q.key])}`).join('\n'
     email: contact.email,
     telefono: contact.telefono,
     ...a,
+    // Versión legible de cada respuesta: es la que se mapea en los campos de GHL
+    ...Object.fromEntries(QUESTIONS.map((q) => [`${q.key}_label`, labelFor(q.key, a[q.key])])),
     objetivo: objetivo.value,
     califica,
     qualification_status: califica ? QUALIFIED_STATUS : 'nurture',
