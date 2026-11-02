@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { generateEventId, trackStage } from '@/utils/ghl'
+import { buildNota, generateEventId, trackStage } from '@/utils/ghl'
 import { getStoredFbParams, type FbParams } from '@/utils/fbclid'
 import { sendCapiEvent } from '@/utils/capi'
 import alcoLogo from '@/assets/logos/alco-wordmark-blue.png'
@@ -11,18 +11,33 @@ import { QUALIFIED_STATUS } from '@/utils/qualification'
 const router = useRouter()
 const iframeEl = ref<HTMLIFrameElement | null>(null)
 const iframeHeight = ref(1100)
+// Mientras el widget no avise su alto, el iframe conserva su scroll interno
+const autoHeight = ref(false)
 let bookingHandled = false
 
 const BASE_URL = GHL_BOOKING_URL
+// id con el formato del código de inserción de GHL (<calendarId>_<timestamp>):
+// form_embed.js lo usa para ajustar el alto del iframe
+const CALENDAR_ID = GHL_BOOKING_URL.split('?')[0].split('/').filter(Boolean).pop() ?? 'alco-calendar'
+const FRAME_ID = `${CALENDAR_ID}_${Date.now()}`
+const EMBED_SCRIPT = 'https://link.msgsndr.com/js/form_embed.js'
 
-// Pre-fill calendar with stored contact data + atribución de Meta (fbclid/UTMs)
+// Pre-fill calendar with stored contact data + atribución de Meta (fbclid/UTMs).
+// first_name/last_name es el formato actual de GHL; firstName/lastName se mantienen por compatibilidad.
 const calendarUrl = computed(() => {
   const params = new URLSearchParams()
   try {
     const stored = localStorage.getItem('alco_contact')
     if (stored) {
-      const { nombre, email, telefono, phone } = JSON.parse(stored)
-      if (nombre) params.set('firstName', nombre)
+      const { nombre, apellido, email, telefono, phone } = JSON.parse(stored)
+      if (nombre) {
+        params.set('first_name', nombre)
+        params.set('firstName', nombre)
+      }
+      if (apellido) {
+        params.set('last_name', apellido)
+        params.set('lastName', apellido)
+      }
       if (email) params.set('email', email)
       if (telefono || phone) params.set('phone', telefono || phone)
     }
@@ -50,20 +65,29 @@ const calendarUrl = computed(() => {
 
 function onMessage(event: MessageEvent) {
   if (!event.data || event.source !== iframeEl.value?.contentWindow) return
+  const data = event.data as unknown
 
-  // GHL dynamic height resize
+  // Alto dinámico del widget, formato actual: ['highlevel.setHeight', { height }]
+  if (Array.isArray(data) && data[0] === 'highlevel.setHeight' && data[1]?.height) {
+    iframeHeight.value = Math.max(640, Number(data[1].height) + 8)
+    autoHeight.value = true
+    return
+  }
+
+  // Formato anterior del widget: { type: 'booking-app', height }
   if (
-    typeof event.data === 'object' &&
-    !Array.isArray(event.data) &&
-    event.data.type === 'booking-app' &&
-    event.data.height
+    typeof data === 'object' &&
+    !Array.isArray(data) &&
+    (data as { type?: string }).type === 'booking-app' &&
+    (data as { height?: number }).height
   ) {
-    iframeHeight.value = Math.max(900, event.data.height + 120)
+    iframeHeight.value = Math.max(900, (data as { height: number }).height + 120)
+    autoHeight.value = true
     return
   }
 
   // GHL booking confirmed — exact event: ['msgsndr-booking-complete', {...}]
-  if (Array.isArray(event.data) && event.data[0] === 'msgsndr-booking-complete') {
+  if (Array.isArray(data) && data[0] === 'msgsndr-booking-complete') {
     if (bookingHandled) return
     let qualification: { califica?: boolean } = {}
     try {
@@ -80,20 +104,25 @@ function onMessage(event: MessageEvent) {
       /* ignorar */
     }
 
-    const notas = `📅 CITA AGENDADA — ALCO Funnel (reunión negocio de fumigación)
-━━━━━━━━━━━━━━━━━━━━━━━━
-👤 ${`${contact.nombre} ${contact.apellido}`.trim() || '—'}
-🏙️ Ciudad: ${contact.negocio || '—'}
-📧 ${contact.email || '—'}
-📱 ${contact.telefono || '—'}
-━━━━━━━━━━━━━━━━━━━━━━━━
-🕐 ${new Date().toLocaleString('es-EC', { timeZone: 'America/Guayaquil' })}
-🔑 event_id: ${scheduleEventId}`
+    const notas = buildNota(
+      '📅 CITA AGENDADA — ALCO Funnel (reunión negocio de fumigación)',
+      {
+        nombre: contact.nombre,
+        apellido: contact.apellido,
+        ciudad: contact.negocio,
+        email: contact.email,
+        telefono: contact.telefono,
+      },
+      [],
+      scheduleEventId,
+    )
 
     trackStage('cita_agendada', {
       ...contact,
       ciudad: contact.negocio,
+      tags: ['funnel-alco', 'step-3-cita-agendada'],
       notas,
+      nota: notas,
       event_id: scheduleEventId,
       event_name: 'Schedule',
       qualification_status: QUALIFIED_STATUS,
@@ -108,7 +137,12 @@ function onMessage(event: MessageEvent) {
     sendCapiEvent(
       'Schedule',
       scheduleEventId,
-      { email: contact.email, phone: contact.telefono },
+      {
+        email: contact.email,
+        phone: contact.telefono,
+        firstName: contact.nombre,
+        lastName: contact.apellido,
+      },
       { content_name: 'reunion-negocio-fumigacion' },
     )
     localStorage.setItem('alco_booked_at', String(Date.now()))
@@ -128,6 +162,14 @@ onMounted(() => {
     return
   }
   window.addEventListener('message', onMessage)
+
+  // Script oficial de GHL: redimensiona el iframe al elegir fecha/horario. Se carga una sola vez.
+  if (BASE_URL && !document.querySelector(`script[src="${EMBED_SCRIPT}"]`)) {
+    const s = document.createElement('script')
+    s.src = EMBED_SCRIPT
+    s.async = true
+    document.body.appendChild(s)
+  }
 })
 onUnmounted(() => window.removeEventListener('message', onMessage))
 </script>
@@ -168,13 +210,14 @@ onUnmounted(() => window.removeEventListener('message', onMessage))
       <div class="calendar__wrapper">
         <iframe
           v-if="BASE_URL"
+          :id="FRAME_ID"
           ref="iframeEl"
           :src="calendarUrl"
           :style="{ height: iframeHeight + 'px' }"
           title="Agenda tu reunión con ALCO"
           class="calendar__iframe"
           frameborder="0"
-          scrolling="yes"
+          :scrolling="autoHeight ? 'no' : 'yes'"
         ></iframe>
         <div v-else class="calendar__pending">
           <i class="fa-regular fa-calendar" aria-hidden="true"></i>

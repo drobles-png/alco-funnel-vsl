@@ -10,6 +10,7 @@ import {
 import { useRouter } from 'vue-router'
 import { getStoredFbParams } from '@/utils/fbclid'
 import { sendCapiEvent } from '@/utils/capi'
+import { buildNota } from '@/utils/ghl'
 import { useContactStore } from '@/stores/contact'
 import { GHL_CONTACT_WEBHOOK } from '@/config/alco'
 const router = useRouter()
@@ -215,16 +216,12 @@ const buildPayload = (estado: EstadoRegistro, eventId: string) => {
   const telefonoFormateado = telefono ? selectedCountry.value.dial + ' ' + formattedPhone.value : ''
   const ciudad = form.value.ciudad.trim()
 
-  const notas = `📝 ${estado === 'completo' ? 'NUEVO CONTACTO' : 'REGISTRO INCOMPLETO (abandonó el formulario)'} — ALCO Funnel
-━━━━━━━━━━━━━━━━━━━━━━━━
-👤 ${`${nombre} ${apellido}`.trim() || '—'}
-🏙️ Ciudad: ${ciudad || '—'}
-📧 ${email || '—'}
-📱 ${telefonoFormateado || '—'}
-🌎 País: ${selectedCountry.value.name}
-━━━━━━━━━━━━━━━━━━━━━━━━
-🕐 ${new Date().toLocaleString('es-EC', { timeZone: 'America/Guayaquil' })}
-🔑 event_id: ${eventId}`
+  const notas = buildNota(
+    `📝 ${estado === 'completo' ? 'NUEVO CONTACTO' : 'REGISTRO INCOMPLETO (abandonó el formulario)'} — ALCO Funnel`,
+    { nombre, apellido, ciudad, email, telefono: telefonoFormateado, pais: selectedCountry.value.name },
+    [],
+    eventId,
+  )
 
   return {
     nombre,
@@ -238,6 +235,12 @@ const buildPayload = (estado: EstadoRegistro, eventId: string) => {
     pais: selectedCountry.value.name,
     ciudad,
     notas,
+    nota: notas,
+    etapa: estado === 'completo' ? 'registro' : 'registro_parcial',
+    tags: [
+      'funnel-alco',
+      estado === 'completo' ? 'step-1-registro' : 'step-1-registro-parcial',
+    ],
     estado_registro: estado,
     origen: 'ALCO Funnel — Formulario de registro',
     url_pagina: window.location.href,
@@ -310,7 +313,12 @@ const handleSubmit = async () => {
   sendCapiEvent(
     'CompleteRegistration',
     leadEventId,
-    { email: payload.email, phone: payload.telefono },
+    {
+      email: payload.email,
+      phone: payload.telefono,
+      firstName: payload.nombre,
+      lastName: payload.apellido,
+    },
     { content_name: 'registro-inicial' },
   )
 

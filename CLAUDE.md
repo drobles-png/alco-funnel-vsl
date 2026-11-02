@@ -28,15 +28,37 @@ pnpm build        # type-check + build
 Todo lo que cambia por integración vive ahí. Si un valor está vacío, ese envío se omite sin romper el flujo.
 | Constante | Estado |
 |---|---|
-| `META_PIXEL_ID` | `1791691808756260` (también hardcodeado en `index.html` y `api/capi.ts`) |
+| `META_PIXEL_ID` | `1791691808756260` (también en `index.html`; `api/capi.ts` usa la env var `META_PIXEL_ID` y este valor como respaldo) |
 | `WISTIA_MEDIA_ID` | **PENDIENTE** — mientras esté vacío, `/ver-video` muestra "El video se publica en breve" |
 | `GHL_CONTACT_WEBHOOK` | "obtener contacto" (`…/efKzehSaLad0hXOluJS4`) — registro (completo/parcial) y `trackStage()` (lead_capturado, cita_agendada) |
 | `GHL_QUALIFY_WEBHOOK` | "obtener cualificación" (`…/OqJuuzUQozzdvrm0PsYN`) — resultado de la calificación (CalendarModal) |
-| `GHL_BOOKING_URL` | `widget/booking/xp4vosuWnsv4JofyU2BY` — se prellena con nombre/email/teléfono + fbclid/UTMs |
+| `GHL_BOOKING_URL` | `widget/booking/xp4vosuWnsv4JofyU2BY` — se prellena con `first_name`/`last_name`/`email`/`phone` (+ `firstName`/`lastName` por compatibilidad) + fbclid/UTMs |
 | `SITE_URL` | `https://alco-landing.vercel.app` (cambiar al conectar dominio; también en index.html, robots, sitemap) |
 | `LEGAL` | RUC, domicilio y correo **por confirmar** con ALCO |
 
 `META_CAPI_TOKEN` va solo en `.env.local` (local) y en las env vars de Vercel. Nunca en el código.
+`META_CAPI_TEST_EVENT_CODE` solo se lee de env (nunca del body de la petición).
+
+## Tracking
+- **Localhost**: el Pixel de `index.html` no carga en `localhost`/`127.0.0.1` (el `<noscript>` se mantiene)
+  y `sendCapiEvent()` retorna sin llamar a `/api/capi`. Las pruebas locales no ensucian los datos de ALCO.
+- **CAPI** (`api/capi.ts`): Graph `v23.0`; hashea `em`, `ph` (solo dígitos), `fn`, `ln`. Los callers pasan
+  `firstName`/`lastName` del contacto.
+- **Eventos** (Pixel + CAPI con el mismo `event_id`): `CompleteRegistration` (registro / gate de `/ver-video`),
+  `ViewContent` (video), `Lead` (califica), `Schedule` (cita agendada).
+- **Payloads GHL** — cambios solo aditivos: los workflows ya mapean los campos existentes (`etiquetas`,
+  `estado_registro`, `qualification_status`, `resultado`, `*_label`, `telefonoDisplay`, etc.), no renombrar
+  ni quitar ninguno. Todo envío lleva además:
+  - `tags` (array; en la calificación = `etiquetas`) · `etapa` (`registro`, `registro_parcial`,
+    `lead_capturado`, `cualificacion`, `cita_agendada`)
+  - `nota` y `notas` con el mismo texto, armado por `buildNota()` (`src/utils/ghl.ts`): contacto, detalle del
+    paso, línea "Origen" (fbclid/UTMs o "directo / orgánico"), fecha en America/Guayaquil y `event_id`
+  - atribución de `getStoredFbParams()` (fbclid, fbc, fbp, utm_*). `trackStage()` la agrega siempre.
+- **Calendario** (`/agendar`): carga `link.msgsndr.com/js/form_embed.js` una vez, el iframe tiene id
+  `<calendarId>_<timestamp>` y ajusta el alto con `['highlevel.setHeight', {height}]` (y el formato viejo
+  `booking-app`); al recibir el primer alto pasa a `scrolling="no"`.
+- **SEO**: las rutas con `meta.noindex` (`/ver-video`, `/agendar`, `/cita-confirmada`, `/sin-espacio`) ponen
+  `robots = noindex, nofollow` en `afterEach`; las públicas restauran `index, follow, max-image-preview:large`.
 
 ## Flujo
 ```
@@ -54,7 +76,7 @@ El campo `negocio` del store de contacto guarda la **ciudad** (se mantuvo el nom
 ## Calificación — `src/utils/qualification.ts` (fuente de verdad)
 Preguntas: perfil, ¿ya tienes dron?, ¿ya tienes clientes?, zona, cómo piensas invertir. Descalifica solo
 `perfil = solo_info` o `inversion = sin_presupuesto`. Zona y clientes no descalifican: son info para el asesor.
-Las notas internas (`nota`) que van a GHL llevan emojis a propósito para leerlas rápido en el CRM.
+Las notas internas (`nota`/`notas`) que van a GHL llevan emojis a propósito para leerlas rápido en el CRM.
 
 ## LocalStorage
 `alco_contact`, `alco_qualification`, `alco_disq_at` (bloquea 24 h), `alco_booked_at`. SessionStorage: `alco_fb`.

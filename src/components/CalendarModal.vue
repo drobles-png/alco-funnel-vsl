@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useContactStore } from '@/stores/contact'
 import { getStoredFbParams } from '@/utils/fbclid'
 import { sendCapiEvent } from '@/utils/capi'
+import { buildNota } from '@/utils/ghl'
 import { GHL_QUALIFY_WEBHOOK, postToWebhook } from '@/config/alco'
 import { useDialogFocus } from '@/composables/useDialogFocus'
 import {
@@ -129,19 +130,24 @@ const handleSubmit = async () => {
     ...QUESTIONS.map((q) => `${q.tagPrefix}-${a[q.key]}`),
   ]
 
-  const nota = `${califica ? '✅ LEAD CALIFICADO' : '❌ NO CALIFICA'} — ALCO Funnel (negocio de fumigación con drones)
-━━━━━━━━━━━━━━━━━━━━━━━━
-👤 ${contact.nombre} ${contact.apellido}
-🏙️ Ciudad: ${contact.negocio || '—'}
-📧 ${contact.email}
-📱 ${contact.telefono}
-━━━━━━━━━━━━━━━━━━━━━━━━
-${QUESTIONS.map((q) => `${q.noteLabel}: ${labelFor(q.key, a[q.key])}`).join('\n')}
-🎯 Qué quiere lograr: ${objetivo.value}
-━━━━━━━━━━━━━━━━━━━━━━━━
-📊 Resultado: ${califica ? '🟢 AGENDA REUNIÓN' : '🔴 NUTRICIÓN'}
-🕐 ${new Date().toLocaleString('es-EC', { timeZone: 'America/Guayaquil' })}
-🔑 event_id: ${scheduleEventId}`
+  const nota = buildNota(
+    `${califica ? '✅ LEAD CALIFICADO' : '❌ NO CALIFICA'} — ALCO Funnel (negocio de fumigación con drones)`,
+    {
+      nombre: contact.nombre || props.nombre,
+      apellido: contact.apellido,
+      ciudad: contact.negocio,
+      email: contact.email,
+      telefono: contact.telefono,
+    },
+    [
+      [
+        ...QUESTIONS.map((q) => `${q.noteLabel}: ${labelFor(q.key, a[q.key])}`),
+        `🎯 Qué quiere lograr: ${objetivo.value}`,
+      ],
+      [`📊 Resultado: ${califica ? '🟢 AGENDA REUNIÓN' : '🔴 NUTRICIÓN'}`],
+    ],
+    scheduleEventId,
+  )
 
   const payload = {
     nombre: contact.nombre || props.nombre,
@@ -159,7 +165,10 @@ ${QUESTIONS.map((q) => `${q.noteLabel}: ${labelFor(q.key, a[q.key])}`).join('\n'
     event_id: scheduleEventId,
     resultado: califica ? 'AGENDA' : 'NUTRICION',
     etiquetas,
+    tags: etiquetas,
+    etapa: 'cualificacion',
     nota,
+    notas: nota,
     timestamp: new Date().toISOString(),
     ...getStoredFbParams(),
   }
@@ -175,7 +184,17 @@ ${QUESTIONS.map((q) => `${q.noteLabel}: ${labelFor(q.key, a[q.key])}`).join('\n'
       inversion: a.inversion,
     }
     ;(window as any).fbq?.('track', 'Lead', customData, { eventID: scheduleEventId })
-    sendCapiEvent('Lead', scheduleEventId, { email: contact.email, phone: contact.telefono }, customData)
+    sendCapiEvent(
+      'Lead',
+      scheduleEventId,
+      {
+        email: contact.email,
+        phone: contact.telefono,
+        firstName: contact.nombre || props.nombre,
+        lastName: contact.apellido,
+      },
+      customData,
+    )
   }
 
   localStorage.setItem(

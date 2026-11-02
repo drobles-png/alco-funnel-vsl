@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { parsePhoneNumberFromString } from 'libphonenumber-js'
 import CalendarModal from '@/components/CalendarModal.vue'
-import { trackStage, generateEventId } from '@/utils/ghl'
+import { buildNota, trackStage, generateEventId } from '@/utils/ghl'
 import { sendCapiEvent } from '@/utils/capi'
 import { useContactStore } from '@/stores/contact'
 import { captureFbParams, getStoredFbParams } from '@/utils/fbclid'
@@ -87,12 +87,23 @@ const submitCapture = async () => {
   const c = contactStore.get()
   const leadEventId = generateEventId('lead_video')
 
+  const nota = buildNota(
+    '📝 NUEVO CONTACTO (registro en /ver-video) — ALCO Funnel',
+    { nombre: c.nombre, apellido: c.apellido, ciudad: c.negocio, email: c.email, telefono: c.telefono },
+    [],
+    leadEventId,
+  )
+
   trackStage('lead_capturado', {
     nombre: c.nombre,
     apellido: c.apellido,
     negocio: c.negocio,
+    ciudad: c.negocio,
     email: c.email,
     telefono: c.telefono,
+    tags: ['funnel-alco', 'step-1-registro', 'registro-video-gate'],
+    nota,
+    notas: nota,
     event_id: leadEventId,
     event_name: 'CompleteRegistration',
     qualification_status: 'pending',
@@ -107,7 +118,7 @@ const submitCapture = async () => {
   sendCapiEvent(
     'CompleteRegistration',
     leadEventId,
-    { email: c.email, phone: c.telefono },
+    { email: c.email, phone: c.telefono, firstName: c.nombre, lastName: c.apellido },
     { content_name: 'video-gate', qualification_status: 'pending' },
   )
   await new Promise((r) => setTimeout(r, 600))
@@ -121,7 +132,7 @@ const submitCapture = async () => {
   sendCapiEvent(
     'ViewContent',
     viewEventId,
-    { email: c.email, phone: c.telefono },
+    { email: c.email, phone: c.telefono, firstName: c.nombre, lastName: c.apellido },
     { content_name: 'video-vsl' },
   )
   captureSubmitting.value = false
@@ -171,7 +182,7 @@ onMounted(() => {
     sendCapiEvent(
       'ViewContent',
       viewEventId,
-      { email: c.email, phone: c.telefono },
+      { email: c.email, phone: c.telefono, firstName: c.nombre, lastName: c.apellido },
       { content_name: 'video-vsl' },
     )
     startTimer()
