@@ -5,6 +5,7 @@ import { useContactStore } from '@/stores/contact'
 import { getStoredFbParams } from '@/utils/fbclid'
 import { sendCapiEvent } from '@/utils/capi'
 import { GHL_QUALIFY_WEBHOOK, postToWebhook } from '@/config/alco'
+import { useDialogFocus } from '@/composables/useDialogFocus'
 import {
   NURTURE_TAG,
   QUALIFIED_STATUS,
@@ -38,6 +39,38 @@ const scrollModalTop = () => {
 const answers = ref<Answers>(emptyAnswers())
 const objetivo = ref('')
 const consent = ref(false)
+
+// ── Teclado: las flechas eligen sin avanzar (para poder recorrer las opciones),
+// Espacio/clic eligen y avanzan, Enter avanza si ya hay respuesta.
+const { focusWithin } = useDialogFocus(modalEl, () => props.open, '.cal-option input')
+let arrowNav = false
+let keyboardUser = false
+const onDocKeydown = () => (keyboardUser = true)
+const onDocPointer = () => (keyboardUser = false)
+
+const onOptionKeydown = (e: KeyboardEvent) => {
+  if (e.key.startsWith('Arrow')) arrowNav = true
+  if (e.key === 'Enter' && currentStepHasValue()) {
+    e.preventDefault()
+    nextStep()
+  }
+}
+
+const onOptionChange = (key: keyof Answers, value: string) => {
+  if (arrowNav) {
+    arrowNav = false
+    answers.value[key] = value
+    return
+  }
+  pick(key, value)
+}
+
+// Al entrar un paso nuevo, el foco va a su primer control (solo si se navega con teclado,
+// para no abrir el teclado del celular en el paso de texto).
+const onStepEnter = () => {
+  if (!keyboardUser) return
+  focusWithin('.cal-option.selected input') ?? focusWithin('.cal-option input, .cal-textarea')
+}
 
 const pick = (key: keyof Answers, value: string) => {
   answers.value[key] = value
@@ -164,9 +197,15 @@ const onKeydown = (e: KeyboardEvent) => {
   if (e.key === 'Escape') emit('close')
 }
 
-onMounted(() => document.addEventListener('keydown', onKeydown))
+onMounted(() => {
+  document.addEventListener('keydown', onKeydown)
+  document.addEventListener('keydown', onDocKeydown, true)
+  document.addEventListener('pointerdown', onDocPointer, true)
+})
 onUnmounted(() => {
   document.removeEventListener('keydown', onKeydown)
+  document.removeEventListener('keydown', onDocKeydown, true)
+  document.removeEventListener('pointerdown', onDocPointer, true)
   if (advanceTimer) clearTimeout(advanceTimer)
 })
 
@@ -225,19 +264,20 @@ watch(
             <div
               class="cal-progress__track"
               role="progressbar"
+              aria-label="Progreso de la calificación"
               :aria-valuenow="step"
               aria-valuemin="1"
               :aria-valuemax="TOTAL_STEPS"
             >
               <div
                 class="cal-progress__fill"
-                :style="{ width: `${(step / TOTAL_STEPS) * 100}%` }"
+                :style="{ transform: `scaleX(${step / TOTAL_STEPS})` }"
               />
             </div>
           </div>
 
           <form class="cal-form" @submit.prevent="handleSubmit" novalidate>
-            <Transition name="cal-step" mode="out-in">
+            <Transition name="cal-step" mode="out-in" @after-enter="onStepEnter">
               <!-- Pasos de opción única (QUESTIONS en utils/qualification.ts) -->
               <fieldset
                 v-if="step < TOTAL_STEPS"
@@ -248,7 +288,7 @@ watch(
                   <span class="cal-q-num">{{ String(step).padStart(2, '0') }}</span>
                   {{ QUESTIONS[step - 1]!.title }}
                 </legend>
-                <div class="cal-options">
+                <div class="cal-options" @keydown="onOptionKeydown">
                   <label
                     v-for="opt in QUESTIONS[step - 1]!.options"
                     :key="opt.value"
@@ -260,8 +300,8 @@ watch(
                       :name="QUESTIONS[step - 1]!.key"
                       :value="opt.value"
                       :checked="answers[QUESTIONS[step - 1]!.key] === opt.value"
-                      @change="pick(QUESTIONS[step - 1]!.key, opt.value)"
-                      hidden
+                      class="cal-sr"
+                      @change="onOptionChange(QUESTIONS[step - 1]!.key, opt.value)"
                     />
                     <span class="cal-option__radio" aria-hidden="true" />
                     <span class="cal-option__label">{{ opt.label }}</span>
@@ -304,7 +344,7 @@ watch(
 
                 <!-- Consent -->
                 <label class="cal-consent" :class="{ 'has-error': touched && !consent }">
-                  <input type="checkbox" v-model="consent" hidden />
+                  <input type="checkbox" v-model="consent" class="cal-sr" />
                   <span class="cal-consent__box" :class="{ checked: consent }" aria-hidden="true">
                     <svg
                       v-if="consent"
@@ -420,7 +460,7 @@ watch(
 $bg: #ffffff;
 $bg-alt: #f2f5f8;
 $border: rgba(11, 31, 51, 0.1);
-$text-muted: rgba(11, 31, 51, 0.5);
+$text-muted: rgba(11, 31, 51, 0.66);
 $text-body: rgba(11, 31, 51, 0.72);
 
 // ── Overlay ──────────────────────────────────────────────────────────────────
@@ -588,6 +628,33 @@ $text-body: rgba(11, 31, 51, 0.72);
   }
 }
 
+// Input nativo visualmente oculto pero accesible por teclado y lector de pantalla
+.cal-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.cal-option {
+  position: relative;
+
+  &:has(.cal-sr:focus-visible) {
+    outline: 3px solid colors.$ALCO-PRIMARY;
+    outline-offset: 2px;
+  }
+}
+
+.cal-consent:has(.cal-sr:focus-visible) .cal-consent__box {
+  outline: 3px solid colors.$ALCO-PRIMARY;
+  outline-offset: 2px;
+}
+
 .cal-option__radio {
   width: 18px;
   height: 18px;
@@ -605,7 +672,7 @@ $text-body: rgba(11, 31, 51, 0.72);
     background: colors.$ALCO-PRIMARY;
     opacity: 0;
     transform: scale(0.4);
-    transition: opacity 0.18s, transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: opacity 0.18s, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
@@ -780,7 +847,7 @@ $text-body: rgba(11, 31, 51, 0.72);
   transition: opacity 0.28s ease;
 
   .cal-modal {
-    transition: opacity 0.28s ease, transform 0.35s cubic-bezier(0.34, 1.4, 0.64, 1);
+    transition: opacity 0.28s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
@@ -839,7 +906,8 @@ $text-body: rgba(11, 31, 51, 0.72);
   height: 100%;
   background: colors.$ALCO-PRIMARY;
   border-radius: 99px;
-  transition: width 0.35s cubic-bezier(0.34, 1.2, 0.64, 1);
+  transform-origin: left center;
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 // ── Wizard: navegación ────────────────────────────────────────────────────────

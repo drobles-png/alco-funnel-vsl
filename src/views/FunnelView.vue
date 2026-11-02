@@ -266,7 +266,7 @@ onBeforeUnmount(() => {
         <div class="needs">
           <article v-for="n in needs" :key="n.num" v-reveal class="need">
             <div class="need__top">
-              <span class="need__num">{{ n.num }}</span>
+              <span class="need__num" aria-hidden="true">{{ n.num }}</span>
               <span class="need__icon" aria-hidden="true"><i :class="['fa-solid', n.icon]"></i></span>
             </div>
             <h3 class="need__title">{{ n.title }}</h3>
@@ -607,7 +607,7 @@ $ease: cubic-bezier(0.23, 1, 0.32, 1);
     font-size: 0.78rem;
     letter-spacing: 0.14em;
     text-transform: uppercase;
-    color: rgba($ink, 0.6);
+    color: rgba($ink, 0.72);
     text-align: right;
   }
 }
@@ -1388,12 +1388,16 @@ $ease: cubic-bezier(0.23, 1, 0.32, 1);
     display: flex;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 10px 22px;
-    margin-bottom: 18px;
+    gap: 0 18px;
+    margin-bottom: 10px;
 
     a {
       color: $ink;
       text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 44px;
       font-size: 0.9rem;
       font-weight: 600;
 
@@ -1407,7 +1411,7 @@ $ease: cubic-bezier(0.23, 1, 0.32, 1);
   &__copy {
     margin: 0 0 12px;
     font-size: 0.85rem;
-    color: rgba($ink, 0.6);
+    color: rgba($ink, 0.72);
   }
 
   &__disclaimer {
@@ -1415,7 +1419,7 @@ $ease: cubic-bezier(0.23, 1, 0.32, 1);
     max-width: 680px;
     font-size: 0.76rem;
     line-height: 1.6;
-    color: rgba($ink, 0.5);
+    color: rgba($ink, 0.66);
   }
 }
 

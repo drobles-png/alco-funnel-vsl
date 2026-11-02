@@ -374,7 +374,6 @@ onUnmounted(() => window.removeEventListener('message', onMessage))
     border: none;
     display: block;
     border-radius: 16px;
-    transition: height 0.3s ease;
     background: #fff;
     -webkit-overflow-scrolling: touch;
   }

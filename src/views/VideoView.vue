@@ -418,7 +418,7 @@ onUnmounted(() => {
 $bg: #ffffff;
 $bg-alt: #f2f5f8;
 $border: rgba(11, 31, 51, 0.1);
-$text-muted: rgba(11, 31, 51, 0.5);
+$text-muted: rgba(11, 31, 51, 0.66);
 $text-body: rgba(11, 31, 51, 0.72);
 
 // ── Page shell ────────────────────────────────────────────────────────────────
@@ -745,9 +745,13 @@ $text-body: rgba(11, 31, 51, 0.72);
 .vv-footer__link {
   font-family: fonts.$font-interface;
   font-size: 0.7rem;
-  color: rgba(11, 31, 51, 0.4);
+  color: rgba(11, 31, 51, 0.66);
   text-decoration: none;
   transition: color 0.2s;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 4px;
 
   &:hover { color: colors.$ALCO-DARK; }
 }

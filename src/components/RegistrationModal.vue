@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useDialogFocus } from '@/composables/useDialogFocus'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import {
   parsePhoneNumberFromString,
@@ -15,6 +16,8 @@ const router = useRouter()
 const contactStore = useContactStore()
 
 const props = defineProps<{ open: boolean }>()
+const rmodalEl = ref<HTMLElement | null>(null)
+useDialogFocus(rmodalEl, () => props.open, '#r-nombre')
 const emit = defineEmits<{ (e: 'close'): void }>()
 
 // ── Países con emoji flag ─────────────────────────────────────────────────────
@@ -372,7 +375,7 @@ watch(dropdownOpen, (open) => {
         aria-modal="true"
         aria-labelledby="rmodal-title"
       >
-        <div class="rmodal">
+        <div ref="rmodalEl" class="rmodal">
           <!-- Close -->
           <button class="rmodal__close" @click="$emit('close')" aria-label="Cerrar">
             <svg
@@ -643,7 +646,7 @@ $bg: #ffffff;
 $bg-alt: #f2f5f8;
 $border: rgba(11, 31, 51, 0.1);
 $input-bg: #f2f5f8;
-$text-muted: rgba(11, 31, 51, 0.5);
+$text-muted: rgba(11, 31, 51, 0.66);
 $text-body: rgba(11, 31, 51, 0.72);
 
 // ── Overlay ──────────────────────────────────────────────────────────────────
@@ -762,7 +765,7 @@ $text-body: rgba(11, 31, 51, 0.72);
     font-family: fonts.$font-interface;
     font-size: 0.74rem;
     font-weight: 600;
-    color: rgba(11, 31, 51, 0.6);
+    color: rgba(11, 31, 51, 0.72);
     letter-spacing: 0.5px;
   }
 
@@ -1077,7 +1080,7 @@ $text-body: rgba(11, 31, 51, 0.72);
   transition: opacity 0.3s ease, backdrop-filter 0.3s ease;
 
   .rmodal {
-    transition: opacity 0.3s ease, transform 0.38s cubic-bezier(0.34, 1.4, 0.64, 1);
+    transition: opacity 0.3s ease, transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
@@ -1108,7 +1111,7 @@ $text-body: rgba(11, 31, 51, 0.72);
 }
 
 .dropdown-enter-active {
-  transition: opacity 0.18s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transition: opacity 0.18s ease, transform 0.2s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .dropdown-leave-active {
