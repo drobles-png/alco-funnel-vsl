@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /agendar
+Disallow: /cita-confirmada
+Disallow: /sin-espacio
+
+Sitemap: https://alco-landing.vercel.app/sitemap.xml

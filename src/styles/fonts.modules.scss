@@ -1,0 +1,42 @@
+// Tipografías de marca de ALCO (ficha técnica): Oswald para títulos, Open Sans para textos.
+@use 'sass:string';
+
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Open+Sans:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --font-titles: 'Oswald', 'Arial Narrow', sans-serif;
+  --font-body: 'Open Sans', system-ui, sans-serif;
+}
+
+$font-principal: 'Oswald', 'Arial Narrow', sans-serif; // Títulos y headings
+$font-secondary: 'Open Sans', system-ui, sans-serif; // Texto de cuerpo
+$font-accent: 'Oswald', 'Arial Narrow', sans-serif; // CTAs y cifras
+$font-interface: 'Open Sans', system-ui, sans-serif; // UI, formularios
+$font-fallback: system-ui, sans-serif;
+
+// Etiquetas e índices: Oswald en mayúsculas con tracking (no hay mono en la marca)
+$font-mono: 'Oswald', 'Arial Narrow', sans-serif;
+
+@mixin heading-font($weight: 600) {
+  font-family: $font-principal;
+  font-weight: $weight;
+  line-height: 1.1;
+}
+
+@mixin body-font($weight: 400) {
+  font-family: $font-secondary;
+  font-weight: $weight;
+  line-height: 1.6;
+}
+
+@mixin accent-font($weight: 500) {
+  font-family: $font-accent;
+  font-weight: $weight;
+  line-height: 1.3;
+}
+
+@mixin interface-font($weight: 400) {
+  font-family: $font-interface;
+  font-weight: $weight;
+  line-height: 1.5;
+}

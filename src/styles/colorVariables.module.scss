@@ -1,0 +1,26 @@
+// Colores de marca de ALCO — el azul sale del logo oficial (#004784).
+$ALCO-PRIMARY: #004784; // azul ALCO — CTAs, links y bloques de marca
+$ALCO-DARK: #0b1f33; // azul noche — texto y secciones oscuras
+$ALCO-DEEP: #00345f; // azul profundo — hover y degradados del azul de marca
+$ALCO-SUN: #f5b301; // amarillo sol — CTA sobre fondos azules y acentos puntuales
+$ALCO-GREEN: #2e9b4f; // verde cultivo — checks y estados de éxito
+$ALCO-LIGHT: #f2f5f8; // fondo alterno de secciones
+$ALCO-ACCENT: $ALCO-DEEP;
+
+$ALCO-PRIMARY-ALIAS: $ALCO-PRIMARY;
+
+// Colores base
+$white: #ffffff;
+$text-light: #f5f5f5;
+$overlay-accent: rgba($ALCO-ACCENT, 0.1);
+
+// Grises
+$gray-100: #f8f9fa;
+$gray-200: #e9ecef;
+$gray-300: #dee2e6;
+$gray-400: #ced4da;
+$gray-500: #9ca3af;
+$gray-600: #6c757d;
+$gray-700: #495057;
+$gray-800: #343a40;
+$gray-900: #212529;

@@ -1,0 +1,14 @@
+@use './colorVariables.module.scss' as *;
+@use './fonts.modules.scss' as *;
+
+html,
+body {
+  background-color: $white;
+  margin: 0;
+  font-family: $font-secondary;
+  box-sizing: border-box; // Reset inicial
+}
+
+*, *::before, *::after {
+  box-sizing: inherit; // Herencia controlada
+}
