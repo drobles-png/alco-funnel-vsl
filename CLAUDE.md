@@ -29,7 +29,8 @@ Todo lo que cambia por integración vive ahí. Si un valor está vacío, ese env
 | Constante | Estado |
 |---|---|
 | `META_PIXEL_ID` | `1791691808756260` (también en `index.html`; `api/capi.ts` usa la env var `META_PIXEL_ID` y este valor como respaldo) |
-| `WISTIA_MEDIA_ID` | **PENDIENTE** — mientras esté vacío, `/ver-video` muestra "El video se publica en breve" |
+| `WISTIA_MEDIA_ID` | `5z93sk0i44` (VSL de Fernando Alvear; si se vacía, `/ver-video` muestra "El video se publica en breve") |
+| `IS_LOCALHOST` | `localhost` o `127.0.0.1`: sin Pixel/CAPI, sin guards, CTA a los 3 s y logs `[ALCO …]` en consola |
 | `GHL_CONTACT_WEBHOOK` | "obtener contacto" (`…/efKzehSaLad0hXOluJS4`) — registro (completo/parcial) y `trackStage()` (lead_capturado, cita_agendada) |
 | `GHL_QUALIFY_WEBHOOK` | "obtener cualificación" (`…/OqJuuzUQozzdvrm0PsYN`) — resultado de la calificación (CalendarModal) |
 | `GHL_BOOKING_URL` | `widget/booking/xp4vosuWnsv4JofyU2BY` — se prellena con `first_name`/`last_name`/`email`/`phone` (+ `firstName`/`lastName` por compatibilidad) + fbclid/UTMs |
@@ -43,7 +44,9 @@ Todo lo que cambia por integración vive ahí. Si un valor está vacío, ese env
 - **Localhost**: el Pixel de `index.html` no carga en `localhost`/`127.0.0.1` (el `<noscript>` se mantiene)
   y `sendCapiEvent()` retorna sin llamar a `/api/capi`. Las pruebas locales no ensucian los datos de ALCO.
 - **CAPI** (`api/capi.ts`): Graph `v23.0`; hashea `em`, `ph` (solo dígitos), `fn`, `ln`. Los callers pasan
-  `firstName`/`lastName` del contacto.
+  `firstName`/`lastName` del contacto. Exige el mismo origen que la página (`Origin`/`Referer` = host; si no → 403),
+  solo acepta `CompleteRegistration`, `ViewContent`, `Lead` y `Schedule` (otro → 400) y manda el token en el
+  cuerpo, no en la URL.
 - **Eventos** (Pixel + CAPI con el mismo `event_id`): `CompleteRegistration` (registro / gate de `/ver-video`),
   `ViewContent` (video), `Lead` (califica), `Schedule` (cita agendada).
 - **Payloads GHL** — cambios solo aditivos: los workflows ya mapean los campos existentes (`etiquetas`,

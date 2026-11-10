@@ -8,7 +8,7 @@ import { sendCapiEvent } from '@/utils/capi'
 import { useContactStore } from '@/stores/contact'
 import { captureFbParams, getStoredFbParams } from '@/utils/fbclid'
 import alcoLogo from '@/assets/logos/alco-wordmark-blue.png'
-import { CTA_UNLOCK_SECONDS, WISTIA_MEDIA_ID } from '@/config/alco'
+import { CTA_UNLOCK_SECONDS, IS_LOCALHOST, WISTIA_MEDIA_ID } from '@/config/alco'
 
 const loadWistiaEmbed = () => {
   if (!WISTIA_MEDIA_ID) return
@@ -141,7 +141,7 @@ const submitCapture = async () => {
 }
 
 // ── 2-minute countdown (3 s en localhost para testing) ───────────────────────
-const IS_DEV = window.location.hostname === 'localhost'
+const IS_DEV = IS_LOCALHOST
 const COUNTDOWN_SECONDS = IS_DEV ? 3 : CTA_UNLOCK_SECONDS
 const secondsLeft = ref(COUNTDOWN_SECONDS)
 const ctaUnlocked = ref(false)
@@ -230,6 +230,7 @@ onUnmounted(() => {
         <wistia-player
           v-if="WISTIA_MEDIA_ID"
           :media-id="WISTIA_MEDIA_ID"
+          :style="{ '--wistia-swatch': `url(https://fast.wistia.com/embed/medias/${WISTIA_MEDIA_ID}/swatch)` }"
           aspect="1.7777777777777777"
         ></wistia-player>
         <div v-else class="vv-video-pending">
@@ -578,7 +579,8 @@ $text-body: rgba(11, 31, 51, 0.72);
   wistia-player:not(:defined) {
     display: block;
     padding-top: 56.25%;
-    background: colors.$ALCO-DARK;
+    background: center / contain no-repeat var(--wistia-swatch), colors.$ALCO-DARK;
+    filter: blur(5px);
   }
 }
 

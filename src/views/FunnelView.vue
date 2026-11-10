@@ -3,14 +3,14 @@ import { ref, onMounted, onBeforeUnmount, type Directive } from 'vue'
 import { useRouter } from 'vue-router'
 import RegistrationModal from '@/components/RegistrationModal.vue'
 import { captureFbParams } from '@/utils/fbclid'
-import { BRAND } from '@/config/alco'
+import { BRAND, IS_LOCALHOST } from '@/config/alco'
 import alcoMark from '@/assets/logos/alco-mark.png'
 import alcoWhite from '@/assets/logos/alco-wordmark-white.png'
 
 const router = useRouter()
 const modalOpen = ref(false)
 
-const IS_DEV = window.location.hostname === 'localhost'
+const IS_DEV = IS_LOCALHOST
 
 const openModal = () => {
   if (!IS_DEV) {

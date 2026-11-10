@@ -12,7 +12,7 @@ import { getStoredFbParams } from '@/utils/fbclid'
 import { sendCapiEvent } from '@/utils/capi'
 import { buildNota } from '@/utils/ghl'
 import { useContactStore } from '@/stores/contact'
-import { GHL_CONTACT_WEBHOOK } from '@/config/alco'
+import { GHL_CONTACT_WEBHOOK, IS_LOCALHOST } from '@/config/alco'
 const router = useRouter()
 const contactStore = useContactStore()
 
@@ -21,16 +21,12 @@ const rmodalEl = ref<HTMLElement | null>(null)
 useDialogFocus(rmodalEl, () => props.open, '#r-nombre')
 const emit = defineEmits<{ (e: 'close'): void }>()
 
-// ── Países con emoji flag ─────────────────────────────────────────────────────
+// ── Países (se muestra el código ISO, sin emoji de bandera) ──────────────────
 interface Country {
   code: string
   name: string
   dial: string
-  flag: string
 }
-
-const flagEmoji = (code: string) =>
-  [...code.toUpperCase()].map((c) => String.fromCodePoint(0x1f1e6 - 65 + c.charCodeAt(0))).join('')
 
 // Lista curada: LATAM primero, luego resto
 const PRIORITY = [
@@ -92,7 +88,6 @@ const allCountries: Country[] = getCountries().map((code) => ({
   code,
   name: nameMap[code] ?? code,
   dial: '+' + getCountryCallingCode(code),
-  flag: flagEmoji(code),
 }))
 
 const priorityList = PRIORITY.map((code) => allCountries.find((c) => c.code === code)).filter(
@@ -105,7 +100,7 @@ const otherList = allCountries
 
 const countries = [
   ...priorityList,
-  { code: '---', name: '─────────', dial: '', flag: '' },
+  { code: '---', name: '─────────', dial: '' },
   ...otherList,
 ]
 
@@ -280,7 +275,7 @@ const capturePartial = () => {
   const key = [payload.nombre, payload.apellido, payload.email, payload.telefono, payload.ciudad].join('|')
   if (key === lastPartialKey) return
   lastPartialKey = key
-  if (window.location.hostname === 'localhost') console.info('[ALCO Registro parcial]', payload)
+  if (IS_LOCALHOST) console.info('[ALCO Registro parcial]', payload)
   postToGhl(payload)
 }
 
@@ -299,7 +294,7 @@ const handleSubmit = async () => {
   const leadEventId = `lead_${Date.now()}_${Math.random().toString(36).slice(2)}`
   const payload = buildPayload('completo', leadEventId)
 
-  if (window.location.hostname === 'localhost') console.info('[ALCO Registro]', payload)
+  if (IS_LOCALHOST) console.info('[ALCO Registro]', payload)
 
   await postToGhl(payload)
 
@@ -474,7 +469,7 @@ watch(dropdownOpen, (open) => {
                   aria-haspopup="listbox"
                   @click="dropdownOpen = !dropdownOpen"
                 >
-                  <span class="rmodal__flag">{{ selectedCountry.flag }}</span>
+                  <span class="rmodal__flag" aria-hidden="true">{{ selectedCountry.code }}</span>
                   <span class="rmodal__dial">{{ selectedCountry.dial }}</span>
                   <svg
                     width="12"
@@ -513,7 +508,7 @@ watch(dropdownOpen, (open) => {
                         @click="selectCountry(c)"
                       >
                         <template v-if="c.code !== '---'">
-                          <span class="rmodal__flag">{{ c.flag }}</span>
+                          <span class="rmodal__flag" aria-hidden="true">{{ c.code }}</span>
                           <span class="rmodal__country-name">{{ c.name }}</span>
                           <span class="rmodal__country-dial">{{ c.dial }}</span>
                         </template>
@@ -575,7 +570,7 @@ watch(dropdownOpen, (open) => {
                 errors.phone
               }}</span>
               <span v-if="phoneValid && parsedPhoneE164" class="rmodal__phone-preview">
-                {{ selectedCountry.flag }} {{ selectedCountry.dial }} {{ formattedPhone }} · E.164:
+                {{ selectedCountry.dial }} {{ formattedPhone }} · E.164:
                 {{ parsedPhoneE164 }}
               </span>
             </div>
@@ -855,8 +850,13 @@ $text-body: rgba(11, 31, 51, 0.72);
 }
 
 .rmodal__flag {
-  font-size: 1.1rem;
+  min-width: 1.6rem;
+  font-family: fonts.$font-secondary;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
   line-height: 1;
+  color: rgba(11, 31, 51, 0.55);
 }
 
 .rmodal__dial {

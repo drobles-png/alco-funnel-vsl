@@ -5,8 +5,37 @@ import { createHash } from 'crypto'
 // para mejorar el match rate y sobrevivir a bloqueadores de anuncios / ITP.
 // El access token vive solo en env vars de Vercel (META_CAPI_TOKEN), nunca en el bundle del cliente.
 // El pixel id puede venir de META_PIXEL_ID; si no está, se usa el Pixel de ALCO.
+// Sin token, el envío se omite sin error.
 const DEFAULT_PIXEL_ID = '1791691808756260'
 const GRAPH_VERSION = 'v23.0'
+
+// Solo los eventos que dispara el funnel. Cualquier otro (ej. un Purchase inventado) se rechaza.
+const ALLOWED_EVENTS = new Set([
+  'CompleteRegistration',
+  'ViewContent',
+  'Lead',
+  'Schedule',
+])
+
+function hostOf(value: string | undefined): string | undefined {
+  if (!value) return undefined
+  try {
+    return new URL(value).host
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * La página y /api viven en el mismo deployment, así que el Origin (o el Referer) del navegador
+ * debe coincidir con el Host de la petición. Funciona igual en el dominio del cliente y en los
+ * previews de Vercel. Corta el abuso desde otros sitios; no es autenticación (curl puede falsearlo).
+ */
+function isSameOrigin(req: VercelRequest): boolean {
+  const host = (req.headers['x-forwarded-host'] as string | undefined) ?? req.headers.host
+  const origin = hostOf(req.headers.origin as string | undefined) ?? hostOf(req.headers.referer)
+  return Boolean(host && origin && origin === host)
+}
 
 function sha256(value: string): string {
   return createHash('sha256').update(value.trim().toLowerCase()).digest('hex')
@@ -37,6 +66,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
+  if (!isSameOrigin(req)) {
+    res.status(403).json({ error: 'Forbidden' })
+    return
+  }
+
   const pixelId = process.env.META_PIXEL_ID || DEFAULT_PIXEL_ID
   const token = process.env.META_CAPI_TOKEN
   if (!token) {
@@ -45,21 +79,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return
   }
 
-  const { event_name, event_id, event_source_url, user_data = {}, custom_data = {} } =
-    (req.body ?? {}) as CapiRequestBody
-  // Solo para pruebas en Events Manager → Probar eventos. Nunca se acepta desde el navegador.
-  const testEventCode = process.env.META_CAPI_TEST_EVENT_CODE
+  const {
+    event_name,
+    event_id,
+    event_source_url,
+    user_data = {},
+    custom_data = {},
+  } = (req.body ?? {}) as CapiRequestBody
 
-  if (!event_name || !event_id) {
+  if (typeof event_name !== 'string' || typeof event_id !== 'string' || !event_id) {
     res.status(400).json({ error: 'event_name y event_id son requeridos' })
     return
   }
+  if (!ALLOWED_EVENTS.has(event_name)) {
+    res.status(400).json({ error: 'event_name no permitido' })
+    return
+  }
 
-  const forwardedFor = (req.headers['x-forwarded-for'] as string | undefined)
-    ?.split(',')[0]
-    ?.trim()
-
-  const phone = user_data.phone ? normalizePhone(user_data.phone) : ''
+  const forwardedFor = (req.headers['x-forwarded-for'] as string | undefined)?.split(',')[0]?.trim()
 
   const payload = {
     data: [
@@ -71,7 +108,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         action_source: 'website',
         user_data: {
           em: user_data.email ? [sha256(user_data.email)] : undefined,
-          ph: phone ? [sha256(phone)] : undefined,
+          ph: user_data.phone ? [sha256(normalizePhone(user_data.phone))] : undefined,
           fn: user_data.firstName ? [sha256(user_data.firstName)] : undefined,
           ln: user_data.lastName ? [sha256(user_data.lastName)] : undefined,
           fbc: user_data.fbc || undefined,
@@ -82,18 +119,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         custom_data,
       },
     ],
-    ...(testEventCode ? { test_event_code: testEventCode } : {}),
+    ...(process.env.META_CAPI_TEST_EVENT_CODE
+      ? { test_event_code: process.env.META_CAPI_TEST_EVENT_CODE }
+      : {}),
+    // En el cuerpo y no en la URL: así el token no queda en logs de proxies ni de Vercel.
+    access_token: token,
   }
 
   try {
-    const metaRes = await fetch(
-      `https://graph.facebook.com/${GRAPH_VERSION}/${pixelId}/events?access_token=${token}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      },
-    )
+    const metaRes = await fetch(`https://graph.facebook.com/${GRAPH_VERSION}/${pixelId}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
     const json = await metaRes.json()
     res.status(metaRes.ok ? 200 : 502).json(json)
   } catch {

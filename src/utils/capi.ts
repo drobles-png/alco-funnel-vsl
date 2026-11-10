@@ -1,4 +1,5 @@
 import { getStoredFbParams } from './fbclid'
+import { IS_LOCALHOST } from '@/config/alco'
 
 /**
  * Envía el mismo evento a la Conversions API de Meta (server-side) que ya se
@@ -13,7 +14,7 @@ export async function sendCapiEvent(
   userData: { email?: string; phone?: string; firstName?: string; lastName?: string } = {},
   customData: Record<string, unknown> = {},
 ) {
-  if (/^(localhost|127\.0\.0\.1)$/.test(window.location.hostname)) return
+  if (IS_LOCALHOST) return
   try {
     const { fbc, fbp } = getStoredFbParams()
     await fetch('/api/capi', {

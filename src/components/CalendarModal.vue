@@ -5,7 +5,7 @@ import { useContactStore } from '@/stores/contact'
 import { getStoredFbParams } from '@/utils/fbclid'
 import { sendCapiEvent } from '@/utils/capi'
 import { buildNota } from '@/utils/ghl'
-import { GHL_QUALIFY_WEBHOOK, postToWebhook } from '@/config/alco'
+import { GHL_QUALIFY_WEBHOOK, IS_LOCALHOST, postToWebhook } from '@/config/alco'
 import { useDialogFocus } from '@/composables/useDialogFocus'
 import {
   NURTURE_TAG,
@@ -110,7 +110,7 @@ const isValid = () =>
   wordCount(objetivo.value) >= MIN_WORDS &&
   consent.value
 
-const IS_DEV = window.location.hostname === 'localhost'
+const IS_DEV = IS_LOCALHOST
 
 const handleSubmit = async () => {
   touched.value = true

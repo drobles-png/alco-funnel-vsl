@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
+import { IS_LOCALHOST } from '@/config/alco'
 import BookedHeader from '@/components/booked/BookedHeader.vue'
 import BookedHero from '@/components/booked/BookedHero.vue'
 import BookedSteps from '@/components/booked/BookedSteps.vue'
@@ -9,10 +10,9 @@ import BookedFooter from '@/components/booked/BookedFooter.vue'
 const router = useRouter()
 
 onMounted(() => {
-  const isDev = ['localhost', '127.0.0.1'].includes(window.location.hostname)
   const bookedAt = Number(localStorage.getItem('alco_booked_at'))
   const hasRecentBooking = bookedAt > 0 && Date.now() - bookedAt < 24 * 60 * 60 * 1000
-  if (!isDev && !hasRecentBooking) router.replace('/')
+  if (!IS_LOCALHOST && !hasRecentBooking) router.replace('/')
 })
 
 /**

@@ -5,7 +5,7 @@ import { buildNota, generateEventId, trackStage } from '@/utils/ghl'
 import { getStoredFbParams, type FbParams } from '@/utils/fbclid'
 import { sendCapiEvent } from '@/utils/capi'
 import alcoLogo from '@/assets/logos/alco-wordmark-blue.png'
-import { GHL_BOOKING_URL } from '@/config/alco'
+import { GHL_BOOKING_URL, IS_LOCALHOST } from '@/config/alco'
 import { QUALIFIED_STATUS } from '@/utils/qualification'
 
 const router = useRouter()
@@ -151,13 +151,12 @@ function onMessage(event: MessageEvent) {
 }
 
 onMounted(() => {
-  const isDev = ['localhost', '127.0.0.1'].includes(window.location.hostname)
   let qualification: { califica?: boolean } = {}
   try {
     qualification = JSON.parse(localStorage.getItem('alco_qualification') ?? '{}')
   } catch { /* ignorar */ }
 
-  if (!isDev && !qualification.califica) {
+  if (!IS_LOCALHOST && !qualification.califica) {
     router.replace('/')
     return
   }
