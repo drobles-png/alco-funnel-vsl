@@ -44,7 +44,8 @@ export async function postToWebhook(url: string, body: unknown): Promise<void> {
     await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      // ads-bakano: todo lead que llega de una landing de Bakano (pauta de Bakano) va marcado así en GHL
+      body: JSON.stringify({ ...(body as Record<string, unknown>), tags: [...(((body as Record<string, unknown>).tags as string[] | undefined) ?? []), 'ads-bakano'] }),
     })
   } catch {
     // silencioso — nunca bloquear la UX por un fallo de tracking

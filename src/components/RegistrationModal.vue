@@ -234,6 +234,7 @@ const buildPayload = (estado: EstadoRegistro, eventId: string) => {
     etapa: estado === 'completo' ? 'registro' : 'registro_parcial',
     tags: [
       'funnel-alco',
+      'ads-bakano',
       estado === 'completo' ? 'step-1-registro' : 'step-1-registro-parcial',
     ],
     estado_registro: estado,
