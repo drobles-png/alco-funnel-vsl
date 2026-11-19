@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useContactStore } from '@/stores/contact'
 import { getStoredFbParams } from '@/utils/fbclid'
@@ -11,8 +11,10 @@ import {
   NURTURE_TAG,
   QUALIFIED_STATUS,
   QUALIFIED_TAG,
-  QUESTIONS,
+  activeQuestions,
   emptyAnswers,
+  provinciaLabel,
+  zonaFromProvincia,
   labelFor,
   qualifies,
   type Answers,
@@ -29,7 +31,10 @@ const touched = ref(false)
 
 // ── Wizard paso a paso: una pregunta por paso + paso final de texto ─────────
 const step = ref(1)
-const TOTAL_STEPS = QUESTIONS.length + 1
+const answers = ref<Answers>(emptyAnswers())
+// Las preguntas dependen del perfil (cultivo solo a productores, clientes solo a prestadores)
+const questions = computed(() => activeQuestions(answers.value))
+const TOTAL_STEPS = computed(() => questions.value.length + 1)
 const modalEl = ref<HTMLElement | null>(null)
 let advanceTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -37,8 +42,9 @@ const scrollModalTop = () => {
   modalEl.value?.scrollTo({ top: 0, behavior: 'smooth' })
 }
 
-const answers = ref<Answers>(emptyAnswers())
 const objetivo = ref('')
+const cultivoOtro = ref('')
+const needsCultivoOtro = computed(() => questions.value.some((q) => q.key === 'cultivo') && answers.value.cultivo === 'otro')
 const consent = ref(false)
 
 // ── Teclado: las flechas eligen sin avanzar (para poder recorrer las opciones),
@@ -76,8 +82,13 @@ const onStepEnter = () => {
 const pick = (key: keyof Answers, value: string) => {
   answers.value[key] = value
   if (advanceTimer) clearTimeout(advanceTimer)
+  if (key === 'cultivo' && value === 'otro') {
+    // No avanza: aparece el campo para escribir el cultivo
+    setTimeout(() => focusWithin('#cal-cultivo-otro'), 50)
+    return
+  }
   advanceTimer = setTimeout(() => {
-    if (step.value < TOTAL_STEPS) {
+    if (step.value < TOTAL_STEPS.value) {
       step.value += 1
       scrollModalTop()
     }
@@ -99,14 +110,16 @@ const nextStep = () => {
 const wordCount = (text: string) => text.trim().split(/\s+/).filter(Boolean).length
 const MIN_WORDS = 10
 
-const currentQuestion = () => QUESTIONS[step.value - 1]
+const currentQuestion = () => questions.value[step.value - 1]
 const currentStepHasValue = () => {
   const q = currentQuestion()
+  if (q?.key === 'cultivo' && answers.value.cultivo === 'otro') return cultivoOtro.value.trim().length >= 2
   return q ? !!answers.value[q.key] : false
 }
 
 const isValid = () =>
-  QUESTIONS.every((q) => !!answers.value[q.key]) &&
+  questions.value.every((q) => !!answers.value[q.key]) &&
+  (!needsCultivoOtro.value || cultivoOtro.value.trim().length >= 2) &&
   wordCount(objetivo.value) >= MIN_WORDS &&
   consent.value
 
@@ -118,8 +131,15 @@ const handleSubmit = async () => {
   submitting.value = true
 
   const contact = contactStore.get()
-  const a = answers.value
+  // Solo las respuestas de las preguntas que le tocaron (si cambió de perfil, las otras quedan vacías)
+  const qs = questions.value
+  const a: Answers = { ...emptyAnswers(), ...Object.fromEntries(qs.map((q) => [q.key, answers.value[q.key]])) }
   const califica = qualifies(a)
+  const { zona, zona_label } = zonaFromProvincia(contact.provincia)
+  const provincia = provinciaLabel(contact.provincia)
+  const cultivo_otro = needsCultivoOtro.value ? cultivoOtro.value.trim() : ''
+  const respuesta = (key: keyof Answers, value: string) =>
+    key === 'cultivo' && cultivo_otro ? `Otro: ${cultivo_otro}` : labelFor(key, value)
   const scheduleEventId = `schedule_${Date.now()}_${Math.random().toString(36).slice(2)}`
 
   const etiquetas = [
@@ -127,7 +147,9 @@ const handleSubmit = async () => {
     'step-2-cualificacion',
     califica ? 'califica' : 'no-califica',
     califica ? QUALIFIED_TAG : NURTURE_TAG,
-    ...QUESTIONS.map((q) => `${q.tagPrefix}-${a[q.key]}`),
+    ...qs.map((q) => `${q.tagPrefix}-${a[q.key]}`),
+    ...(contact.provincia ? [`provincia-${contact.provincia}`] : []),
+    ...(zona ? [`zona-${zona}`] : []),
   ]
 
   const nota = buildNota(
@@ -136,12 +158,13 @@ const handleSubmit = async () => {
       nombre: contact.nombre || props.nombre,
       apellido: contact.apellido,
       ciudad: contact.negocio,
+      provincia,
       email: contact.email,
       telefono: contact.telefono,
     },
     [
       [
-        ...QUESTIONS.map((q) => `${q.noteLabel}: ${labelFor(q.key, a[q.key])}`),
+        ...qs.map((q) => `${q.noteLabel}: ${respuesta(q.key, a[q.key])}`),
         `🎯 Qué quiere lograr: ${objetivo.value}`,
       ],
       [`📊 Resultado: ${califica ? '🟢 AGENDA REUNIÓN' : '🔴 NUTRICIÓN'}`],
@@ -153,11 +176,17 @@ const handleSubmit = async () => {
     nombre: contact.nombre || props.nombre,
     apellido: contact.apellido,
     ciudad: contact.negocio,
+    canton: contact.negocio,
+    provincia,
     email: contact.email,
     telefono: contact.telefono,
     ...a,
     // Versión legible de cada respuesta: es la que se mapea en los campos de GHL
-    ...Object.fromEntries(QUESTIONS.map((q) => [`${q.key}_label`, labelFor(q.key, a[q.key])])),
+    ...Object.fromEntries(qs.map((q) => [`${q.key}_label`, respuesta(q.key, a[q.key])])),
+    cultivo_otro,
+    // La zona ya no se pregunta: sale de la provincia (el workflow de GHL la sigue mapeando)
+    zona,
+    zona_label,
     objetivo: objetivo.value,
     califica,
     qualification_status: califica ? QUALIFIED_STATUS : 'nurture',
@@ -180,7 +209,7 @@ const handleSubmit = async () => {
     const customData = {
       content_name: QUALIFIED_TAG,
       perfil: a.perfil,
-      zona: a.zona,
+      zona,
       inversion: a.inversion,
     }
     ;(window as any).fbq?.('track', 'Lead', customData, { eventID: scheduleEventId })
@@ -237,6 +266,7 @@ watch(
       submitting.value = false
       answers.value = emptyAnswers()
       objetivo.value = ''
+      cultivoOtro.value = ''
       consent.value = false
     }
   },
@@ -297,7 +327,7 @@ watch(
 
           <form class="cal-form" @submit.prevent="handleSubmit" novalidate>
             <Transition name="cal-step" mode="out-in" @after-enter="onStepEnter">
-              <!-- Pasos de opción única (QUESTIONS en utils/qualification.ts) -->
+              <!-- Pasos de opción única (QUESTIONS en utils/qualification.ts, filtradas por perfil) -->
               <fieldset
                 v-if="step < TOTAL_STEPS"
                 :key="`q${step}`"
@@ -305,26 +335,41 @@ watch(
               >
                 <legend class="cal-legend">
                   <span class="cal-q-num">{{ String(step).padStart(2, '0') }}</span>
-                  {{ QUESTIONS[step - 1]!.title }}
+                  {{ questions[step - 1]!.title }}
                 </legend>
                 <div class="cal-options" @keydown="onOptionKeydown">
                   <label
-                    v-for="opt in QUESTIONS[step - 1]!.options"
+                    v-for="opt in questions[step - 1]!.options"
                     :key="opt.value"
                     class="cal-option"
-                    :class="{ selected: answers[QUESTIONS[step - 1]!.key] === opt.value }"
+                    :class="{ selected: answers[questions[step - 1]!.key] === opt.value }"
                   >
                     <input
                       type="radio"
-                      :name="QUESTIONS[step - 1]!.key"
+                      :name="questions[step - 1]!.key"
                       :value="opt.value"
-                      :checked="answers[QUESTIONS[step - 1]!.key] === opt.value"
+                      :checked="answers[questions[step - 1]!.key] === opt.value"
                       class="cal-sr"
-                      @change="onOptionChange(QUESTIONS[step - 1]!.key, opt.value)"
+                      @change="onOptionChange(questions[step - 1]!.key, opt.value)"
                     />
                     <span class="cal-option__radio" aria-hidden="true" />
                     <span class="cal-option__label">{{ opt.label }}</span>
                   </label>
+                </div>
+                <div
+                  v-if="questions[step - 1]!.key === 'cultivo' && answers.cultivo === 'otro'"
+                  class="cal-otro"
+                >
+                  <label for="cal-cultivo-otro" class="cal-otro__label">¿Qué cultivo tienes?</label>
+                  <input
+                    id="cal-cultivo-otro"
+                    v-model="cultivoOtro"
+                    type="text"
+                    class="cal-textarea cal-otro__input"
+                    placeholder="Ej: mango, plátano, café..."
+                    maxlength="80"
+                    @keydown.enter.prevent="currentStepHasValue() && nextStep()"
+                  />
                 </div>
               </fieldset>
 
@@ -337,7 +382,7 @@ watch(
               >
                 <legend class="cal-legend">
                   <span class="cal-q-num">{{ String(TOTAL_STEPS).padStart(2, '0') }}</span>
-                  ¿Qué quieres lograr con tu negocio de fumigación?
+                  ¿Qué quieres lograr con tu dron de fumigación?
                 </legend>
                 <div class="cal-textarea-wrap">
                   <textarea
@@ -360,6 +405,7 @@ watch(
                     </span>
                   </div>
                 </div>
+
 
                 <!-- Consent -->
                 <label class="cal-consent" :class="{ 'has-error': touched && !consent }">
@@ -831,6 +877,25 @@ $text-body: rgba(11, 31, 51, 0.72);
 
   &.error {
     border-color: rgba(220, 38, 38, 0.35);
+  }
+}
+
+.cal-otro {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 14px;
+
+  &__label {
+    font-family: fonts.$font-interface;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: colors.$ALCO-DARK;
+  }
+
+  &__input {
+    min-height: 0;
+    resize: none;
   }
 }
 

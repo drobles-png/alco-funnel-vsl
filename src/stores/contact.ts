@@ -4,7 +4,10 @@ import { ref } from 'vue'
 export interface AlcoContact {
   nombre: string
   apellido: string
+  /** Guarda el cantón (antes ciudad); se mantuvo el nombre por compatibilidad. */
   negocio: string
+  /** Valor de PROVINCIAS (utils/qualification.ts). */
+  provincia: string
   email: string
   telefono: string
   timestamp?: number
@@ -17,6 +20,7 @@ export const useContactStore = defineStore('contact', () => {
     nombre: '',
     apellido: '',
     negocio: '',
+    provincia: '',
     email: '',
     telefono: '',
   })
@@ -39,7 +43,7 @@ export const useContactStore = defineStore('contact', () => {
   }
 
   function clear() {
-    contact.value = { nombre: '', apellido: '', negocio: '', email: '', telefono: '' }
+    contact.value = { nombre: '', apellido: '', negocio: '', provincia: '', email: '', telefono: '' }
     localStorage.removeItem(STORAGE_KEY)
   }
 

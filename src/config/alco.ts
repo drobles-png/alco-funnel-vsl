@@ -35,9 +35,16 @@ export const BRAND = {
   facebook: 'https://www.facebook.com/profile.php?id=100064036120272',
 } as const
 
+/** En local no sale nada al CRM de ALCO (se ve como [GHL stub] en consola), salvo que se abra con ?ghl=1. */
+export const GHL_LOCAL_STUB = IS_LOCALHOST && !new URLSearchParams(window.location.search).has('ghl')
+
 export async function postToWebhook(url: string, body: unknown): Promise<void> {
   if (!url) {
     if (IS_LOCALHOST) console.info('[ALCO] webhook sin configurar', body)
+    return
+  }
+  if (GHL_LOCAL_STUB) {
+    console.info('[GHL stub]', (body as Record<string, unknown>).etapa, body)
     return
   }
   try {

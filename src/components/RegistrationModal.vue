@@ -12,7 +12,8 @@ import { getStoredFbParams } from '@/utils/fbclid'
 import { sendCapiEvent } from '@/utils/capi'
 import { buildNota } from '@/utils/ghl'
 import { useContactStore } from '@/stores/contact'
-import { GHL_CONTACT_WEBHOOK, IS_LOCALHOST } from '@/config/alco'
+import { GHL_CONTACT_WEBHOOK, GHL_LOCAL_STUB, IS_LOCALHOST } from '@/config/alco'
+import { PROVINCIAS, provinciaLabel } from '@/utils/qualification'
 const router = useRouter()
 const contactStore = useContactStore()
 
@@ -115,6 +116,7 @@ const form = ref({
   apellido: '',
   email: '',
   phone: '',
+  provincia: '',
   ciudad: '',
 })
 
@@ -146,7 +148,8 @@ const validators: Record<string, (v: string) => string | null> = {
   apellido: (v) => (v.trim().length < 2 ? 'Ingresa tu apellido' : null),
   email: (v) => (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()) ? null : 'Email inválido'),
   phone: () => (phoneValid.value ? null : 'Número inválido para el país seleccionado'),
-  ciudad: (v) => (v.trim().length < 2 ? 'Ingresa tu ciudad o cantón' : null),
+  provincia: (v) => (v ? null : 'Elige tu provincia'),
+  ciudad: (v) => (v.trim().length < 2 ? 'Ingresa tu cantón' : null),
 }
 
 const validate = () => {
@@ -210,10 +213,11 @@ const buildPayload = (estado: EstadoRegistro, eventId: string) => {
   const telefono = phoneValid.value ? parsedPhoneE164.value : ''
   const telefonoFormateado = telefono ? selectedCountry.value.dial + ' ' + formattedPhone.value : ''
   const ciudad = form.value.ciudad.trim()
+  const provincia = provinciaLabel(form.value.provincia)
 
   const notas = buildNota(
     `📝 ${estado === 'completo' ? 'NUEVO CONTACTO' : 'REGISTRO INCOMPLETO (abandonó el formulario)'} — ALCO Funnel`,
-    { nombre, apellido, ciudad, email, telefono: telefonoFormateado, pais: selectedCountry.value.name },
+    { nombre, apellido, ciudad, provincia, email, telefono: telefonoFormateado, pais: selectedCountry.value.name },
     [],
     eventId,
   )
@@ -229,6 +233,8 @@ const buildPayload = (estado: EstadoRegistro, eventId: string) => {
     codigo_pais: selectedCountry.value.dial,
     pais: selectedCountry.value.name,
     ciudad,
+    canton: ciudad,
+    provincia,
     notas,
     nota: notas,
     etapa: estado === 'completo' ? 'registro' : 'registro_parcial',
@@ -236,6 +242,7 @@ const buildPayload = (estado: EstadoRegistro, eventId: string) => {
       'funnel-alco',
       'ads-bakano',
       estado === 'completo' ? 'step-1-registro' : 'step-1-registro-parcial',
+      ...(form.value.provincia ? [`provincia-${form.value.provincia}`] : []),
     ],
     estado_registro: estado,
     origen: 'ALCO Funnel — Formulario de registro',
@@ -254,6 +261,8 @@ const buildPayload = (estado: EstadoRegistro, eventId: string) => {
 const postToGhl = (payload: ReturnType<typeof buildPayload>) =>
   !CONTACT_WEBHOOK
     ? Promise.resolve()
+    : GHL_LOCAL_STUB
+    ? Promise.resolve(console.info('[GHL stub]', payload.etapa, payload))
     : fetch(CONTACT_WEBHOOK, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -273,7 +282,7 @@ const capturePartial = () => {
   if (completed) return
   const payload = buildPayload('parcial', `partial_${Date.now()}_${Math.random().toString(36).slice(2)}`)
   if (!payload.email && !payload.telefono) return
-  const key = [payload.nombre, payload.apellido, payload.email, payload.telefono, payload.ciudad].join('|')
+  const key = [payload.nombre, payload.apellido, payload.email, payload.telefono, payload.provincia, payload.ciudad].join('|')
   if (key === lastPartialKey) return
   lastPartialKey = key
   if (IS_LOCALHOST) console.info('[ALCO Registro parcial]', payload)
@@ -285,7 +294,7 @@ const onVisibilityChange = () => {
 }
 
 const handleSubmit = async () => {
-  touched.value = { nombre: true, apellido: true, email: true, phone: true, ciudad: true }
+  touched.value = { nombre: true, apellido: true, email: true, phone: true, provincia: true, ciudad: true }
   if (!validate()) return
 
   submitting.value = true
@@ -323,6 +332,7 @@ const handleSubmit = async () => {
     nombre: form.value.nombre.trim(),
     apellido: form.value.apellido.trim(),
     negocio: form.value.ciudad.trim(),
+    provincia: form.value.provincia,
     email: form.value.email.trim().toLowerCase(),
     telefono: parsedPhoneE164.value,
   })
@@ -576,9 +586,21 @@ watch(dropdownOpen, (open) => {
               </span>
             </div>
 
-            <!-- Ciudad -->
+            <!-- Provincia -->
+            <div class="rmodal__field" :class="{ 'has-error': touched.provincia && errors.provincia }">
+              <label for="r-provincia">¿En qué provincia estás?</label>
+              <select id="r-provincia" v-model="form.provincia" @change="onBlur('provincia')" @blur="onBlur('provincia')">
+                <option value="" disabled>Elige tu provincia</option>
+                <option v-for="p in PROVINCIAS" :key="p.value" :value="p.value">{{ p.label }}</option>
+              </select>
+              <span v-if="touched.provincia && errors.provincia" class="rmodal__error">{{
+                errors.provincia
+              }}</span>
+            </div>
+
+            <!-- Cantón (se guarda como ciudad) -->
             <div class="rmodal__field" :class="{ 'has-error': touched.ciudad && errors.ciudad }">
-              <label for="r-ciudad">¿En qué ciudad o cantón estás?</label>
+              <label for="r-ciudad">¿En qué cantón?</label>
               <input
                 id="r-ciudad"
                 v-model="form.ciudad"
@@ -773,7 +795,8 @@ $text-body: rgba(11, 31, 51, 0.72);
     letter-spacing: 0.5px;
   }
 
-  input {
+  input,
+  select {
     width: 100%;
     box-sizing: border-box;
     background: $input-bg;
@@ -797,7 +820,8 @@ $text-body: rgba(11, 31, 51, 0.72);
     }
   }
 
-  &.has-error input {
+  &.has-error input,
+  &.has-error select {
     border-color: rgba(220, 38, 38, 0.5);
   }
 }

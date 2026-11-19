@@ -66,19 +66,25 @@ Todo lo que cambia por integración vive ahí. Si un valor está vacío, ese env
 ## Flujo
 ```
 / (FunnelView, alias /negocio-drones)   hero azul + tarjeta VSL → abre RegistrationModal
-  ↓ RegistrationModal (nombre, apellido, email, teléfono, ciudad) → CompleteRegistration
+  ↓ RegistrationModal (nombre, apellido, email, teléfono, provincia, cantón) → CompleteRegistration
 /ver-video (VideoView)                   Wistia + CTA bloqueado CTA_UNLOCK_SECONDS → CalendarModal
-  ↓ CalendarModal (5 preguntas + "qué quieres lograr") → Lead si califica
+  ↓ CalendarModal (3-5 preguntas según perfil + "qué quieres lograr") → Lead si califica
 /agendar (BookingView)                   iframe GHL → Schedule al recibir msgsndr-booking-complete
 /cita-confirmada (BookedView)
 /sin-espacio (NoSpaceView)               no califica → manda a Instagram de ALCO
 /politicas-privacidad · /aviso-legal     (LegalLayout)
 ```
-El campo `negocio` del store de contacto guarda la **ciudad** (se mantuvo el nombre por compatibilidad).
+El campo `negocio` del store de contacto guarda el **cantón** (se manda como `ciudad` y `canton`; se mantuvo el nombre
+por compatibilidad) y `provincia` guarda el valor de `PROVINCIAS`.
 
 ## Calificación — `src/utils/qualification.ts` (fuente de verdad)
-Preguntas: perfil, ¿ya tienes dron?, ¿ya tienes clientes?, zona, cómo piensas invertir. Descalifica solo
-`perfil = solo_info` o `inversion = sin_presupuesto`. Zona y clientes no descalifican: son info para el asesor.
+Preguntas (pedido de ALCO, 2026-11-19): perfil (productor / prestador / ambos), cultivo principal (solo
+productor o ambos; "Otro" abre un campo para escribirlo ahí mismo → `cultivo_otro`), ¿ya tienes dron?, ¿ya tienes clientes? (solo
+prestador o ambos), cómo piensas invertir. Descalifica **solo** `inversion = sin_presupuesto`: productor y prestador
+agendan igual. Provincia (lista) y cantón (texto, dato para el asesor) se piden en el registro. La zona ya no se
+pregunta: `zona`/`zona_label` se calculan de la provincia (`zonaFromProvincia`) porque GHL ya los mapea.
+Campos nuevos en GHL: `provincia`, `canton`, `cultivo`, `cultivo_label`, `cultivo_otro`; tags `provincia-*`,
+`cultivo-*`, `zona-*`. Los valores viejos de `perfil` (agronomo, solo_info…) ya no llegan.
 Las notas internas (`nota`/`notas`) que van a GHL llevan emojis a propósito para leerlas rápido en el CRM.
 
 ## LocalStorage

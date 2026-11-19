@@ -9,6 +9,7 @@ import { useContactStore } from '@/stores/contact'
 import { captureFbParams, getStoredFbParams } from '@/utils/fbclid'
 import alcoLogo from '@/assets/logos/alco-wordmark-blue.png'
 import { CTA_UNLOCK_SECONDS, IS_LOCALHOST, WISTIA_MEDIA_ID } from '@/config/alco'
+import { PROVINCIAS, provinciaLabel } from '@/utils/qualification'
 
 const loadWistiaEmbed = () => {
   if (!WISTIA_MEDIA_ID) return
@@ -36,7 +37,7 @@ const calendarOpen = ref(false)
 
 // ── Contact capture guard ─────────────────────────────────────────────────────
 const captureOpen = ref(false)
-const captureForm = ref({ nombre: '', apellido: '', negocio: '', email: '', telefono: '' })
+const captureForm = ref({ nombre: '', apellido: '', provincia: '', negocio: '', email: '', telefono: '' })
 const captureErrors = ref<Record<string, string>>({})
 const captureTouched = ref<Record<string, boolean>>({})
 const captureSubmitting = ref(false)
@@ -53,7 +54,8 @@ const validateCapture = () => {
   const e: Record<string, string> = {}
   if (captureForm.value.nombre.trim().length < 2) e.nombre = 'Ingresa tu nombre'
   if (captureForm.value.apellido.trim().length < 2) e.apellido = 'Ingresa tu apellido'
-  if (captureForm.value.negocio.trim().length < 2) e.negocio = 'Ingresa tu ciudad o cantón'
+  if (!captureForm.value.provincia) e.provincia = 'Elige tu provincia'
+  if (captureForm.value.negocio.trim().length < 2) e.negocio = 'Ingresa tu cantón'
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(captureForm.value.email.trim())) e.email = 'Email inválido'
   if (!capturePhoneE164.value) e.telefono = 'Teléfono inválido'
   captureErrors.value = e
@@ -69,6 +71,7 @@ const submitCapture = async () => {
   captureTouched.value = {
     nombre: true,
     apellido: true,
+    provincia: true,
     negocio: true,
     email: true,
     telefono: true,
@@ -80,6 +83,7 @@ const submitCapture = async () => {
     nombre: captureForm.value.nombre.trim(),
     apellido: captureForm.value.apellido.trim(),
     negocio: captureForm.value.negocio.trim(),
+    provincia: captureForm.value.provincia,
     email: captureForm.value.email.trim().toLowerCase(),
     telefono: capturePhoneE164.value,
   })
@@ -89,7 +93,7 @@ const submitCapture = async () => {
 
   const nota = buildNota(
     '📝 NUEVO CONTACTO (registro en /ver-video) — ALCO Funnel',
-    { nombre: c.nombre, apellido: c.apellido, ciudad: c.negocio, email: c.email, telefono: c.telefono },
+    { nombre: c.nombre, apellido: c.apellido, ciudad: c.negocio, provincia: provinciaLabel(c.provincia), email: c.email, telefono: c.telefono },
     [],
     leadEventId,
   )
@@ -99,9 +103,11 @@ const submitCapture = async () => {
     apellido: c.apellido,
     negocio: c.negocio,
     ciudad: c.negocio,
+    canton: c.negocio,
+    provincia: provinciaLabel(c.provincia),
     email: c.email,
     telefono: c.telefono,
-    tags: ['funnel-alco', 'step-1-registro', 'registro-video-gate'],
+    tags: ['funnel-alco', 'step-1-registro', 'registro-video-gate', `provincia-${c.provincia}`],
     nota,
     notas: nota,
     event_id: leadEventId,
@@ -352,9 +358,29 @@ onUnmounted(() => {
 
           <div
             class="cap-field"
+            :class="{ 'cap-field--error': captureTouched.provincia && captureErrors.provincia }"
+          >
+            <label class="cap-label" for="cap-provincia">Provincia</label>
+            <select
+              id="cap-provincia"
+              v-model="captureForm.provincia"
+              class="cap-input"
+              @change="touchCapture('provincia')"
+              @blur="touchCapture('provincia')"
+            >
+              <option value="" disabled>Elige tu provincia</option>
+              <option v-for="p in PROVINCIAS" :key="p.value" :value="p.value">{{ p.label }}</option>
+            </select>
+            <span v-if="captureTouched.provincia && captureErrors.provincia" class="cap-error">{{
+              captureErrors.provincia
+            }}</span>
+          </div>
+
+          <div
+            class="cap-field"
             :class="{ 'cap-field--error': captureTouched.negocio && captureErrors.negocio }"
           >
-            <label class="cap-label" for="cap-negocio">Ciudad o cantón</label>
+            <label class="cap-label" for="cap-negocio">Cantón</label>
             <input
               id="cap-negocio"
               v-model="captureForm.negocio"

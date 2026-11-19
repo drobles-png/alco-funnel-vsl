@@ -6,7 +6,7 @@ import { getStoredFbParams, type FbParams } from '@/utils/fbclid'
 import { sendCapiEvent } from '@/utils/capi'
 import alcoLogo from '@/assets/logos/alco-wordmark-blue.png'
 import { GHL_BOOKING_URL, IS_LOCALHOST } from '@/config/alco'
-import { QUALIFIED_STATUS } from '@/utils/qualification'
+import { QUALIFIED_STATUS, provinciaLabel } from '@/utils/qualification'
 
 const router = useRouter()
 const iframeEl = ref<HTMLIFrameElement | null>(null)
@@ -97,7 +97,7 @@ function onMessage(event: MessageEvent) {
     bookingHandled = true
 
     const scheduleEventId = generateEventId('schedule')
-    let contact = { nombre: '', apellido: '', negocio: '', email: '', telefono: '' }
+    let contact = { nombre: '', apellido: '', negocio: '', provincia: '', email: '', telefono: '' }
     try {
       contact = { ...contact, ...JSON.parse(localStorage.getItem('alco_contact') ?? '{}') }
     } catch {
@@ -110,6 +110,7 @@ function onMessage(event: MessageEvent) {
         nombre: contact.nombre,
         apellido: contact.apellido,
         ciudad: contact.negocio,
+        provincia: provinciaLabel(contact.provincia),
         email: contact.email,
         telefono: contact.telefono,
       },
@@ -120,6 +121,8 @@ function onMessage(event: MessageEvent) {
     trackStage('cita_agendada', {
       ...contact,
       ciudad: contact.negocio,
+      canton: contact.negocio,
+      provincia: provinciaLabel(contact.provincia),
       tags: ['funnel-alco', 'step-3-cita-agendada'],
       notas,
       nota: notas,

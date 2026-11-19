@@ -25,6 +25,7 @@ export function buildNota(
     nombre?: string
     apellido?: string
     ciudad?: string
+    provincia?: string
     email?: string
     telefono?: string
     pais?: string
@@ -47,7 +48,8 @@ export function buildNota(
     titulo,
     SEP,
     `👤 ${`${contacto.nombre ?? ''} ${contacto.apellido ?? ''}`.trim() || '—'}`,
-    `🏙️ Ciudad: ${contacto.ciudad || '—'}`,
+    `🏙️ Cantón: ${contacto.ciudad || '—'}`,
+    ...(contacto.provincia ? [`🗺️ Provincia: ${contacto.provincia}`] : []),
     `📧 ${contacto.email || '—'}`,
     `📱 ${contacto.telefono || '—'}`,
     ...(contacto.pais ? [`🌎 País: ${contacto.pais}`] : []),
