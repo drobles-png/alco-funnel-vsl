@@ -19,10 +19,13 @@ Font Awesome 6 por CDN (sin emojis en la UI) · función serverless de Vercel `a
 ## Comandos
 ```bash
 pnpm install
-pnpm dev          # http://localhost:5173 (en localhost el CTA del video se libera a los 3 s y no hay guards)
+pnpm dev --port 5174 --strictPort   # en localhost el CTA del video se libera a los 3 s, no hay guards y GHL va a consola ([GHL stub]; ?ghl=1 para enviar de verdad)
 pnpm type-check
 pnpm build        # type-check + build
+# e2e (modo stub: nada sale a GHL ni a Meta). Usa los data-field / data-cta del formulario.
+python3 ~/.claude/skills/landings-vsl/scripts/e2e_funnel.py --base http://localhost:5174 --steps e2e/agenda.json
 ```
+Deploy: Vercel, equipo **Proyectos de Diego** (`proyectos-de-diego`), proyecto `alco-landing`. Cada push a `main` publica solo.
 
 ## Configuración central — `src/config/alco.ts`
 Todo lo que cambia por integración vive ahí. Si un valor está vacío, ese envío se omite sin romper el flujo.
@@ -96,6 +99,17 @@ Las notas internas (`nota`/`notas`) que van a GHL llevan emojis a propósito par
 - Tipografías de la ficha: **Oswald** (títulos, mayúsculas) y **Open Sans** (textos).
 - Logos en `src/assets/logos/`: `alco-mark.png` (bloque azul oficial), `alco-wordmark-blue.png`,
   `alco-wordmark-white.png`. Originales en `brand/`.
+
+## Pendientes (2026-11-20)
+- **Datos legales** (`LEGAL` en `src/config/alco.ts`): RUC, razón social, domicilio y correo → los manda ALCO.
+  Bloquea la pauta: la política de privacidad muestra "Por confirmar".
+- **Mapeo en GHL**: los campos `provincia`, `canton`, `cultivo_label` y `cultivo_otro` existen pero los workflows
+  todavía no los llenan (acción "Crear / actualizar contacto", valor `{{inboundWebhookRequest.<campo>}}`).
+- **Verificar deduplicación Pixel + CAPI** con el e2e en modo `meta` contra producción, con un código de prueba
+  nuevo en `META_CAPI_TEST_EVENT_CODE` (y quitarlo al terminar).
+- **Dominio**: la regla de Bakano es un solo dominio `alco-lng.vercel.app`; hoy está en `alco-landing.vercel.app`.
+- **Meta**: confirmar los dominios `alco-landing.vercel.app` y `alco-funnel.vercel.app` (no `arlogs-lng`, que
+  usaba el Pixel de ALCO por error; ya corregido en ARLOGS).
 
 ## No hacer
 - No inventar cifras, testimonios, casos de clientes ni escasez (cupos). El único testimonio es el halago

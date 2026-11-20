@@ -422,6 +422,7 @@ watch(dropdownOpen, (open) => {
                 <label for="r-nombre">Nombre</label>
                 <input
                   id="r-nombre"
+                  data-field="nombre"
                   v-model="form.nombre"
                   type="text"
                   placeholder="Juan"
@@ -440,6 +441,7 @@ watch(dropdownOpen, (open) => {
                 <label for="r-apellido">Apellido</label>
                 <input
                   id="r-apellido"
+                  data-field="apellido"
                   v-model="form.apellido"
                   type="text"
                   placeholder="Pérez"
@@ -457,6 +459,7 @@ watch(dropdownOpen, (open) => {
               <label for="r-email">Correo electrónico</label>
               <input
                 id="r-email"
+                data-field="email"
                 v-model="form.email"
                 type="email"
                 placeholder="juan@correo.com"
@@ -534,6 +537,7 @@ watch(dropdownOpen, (open) => {
                 <!-- Input numérico -->
                 <input
                   class="rmodal__phone-input"
+                  data-field="phone"
                   type="tel"
                   :value="form.phone"
                   placeholder="99 999 9999"
@@ -589,7 +593,7 @@ watch(dropdownOpen, (open) => {
             <!-- Provincia -->
             <div class="rmodal__field" :class="{ 'has-error': touched.provincia && errors.provincia }">
               <label for="r-provincia">¿En qué provincia estás?</label>
-              <select id="r-provincia" v-model="form.provincia" @change="onBlur('provincia')" @blur="onBlur('provincia')">
+              <select id="r-provincia" data-field="provincia" v-model="form.provincia" @change="onBlur('provincia')" @blur="onBlur('provincia')">
                 <option value="" disabled>Elige tu provincia</option>
                 <option v-for="p in PROVINCIAS" :key="p.value" :value="p.value">{{ p.label }}</option>
               </select>
@@ -603,6 +607,7 @@ watch(dropdownOpen, (open) => {
               <label for="r-ciudad">¿En qué cantón?</label>
               <input
                 id="r-ciudad"
+                data-field="ciudad"
                 v-model="form.ciudad"
                 type="text"
                 placeholder="Babahoyo"

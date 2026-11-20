@@ -262,6 +262,7 @@ onUnmounted(() => {
         <!-- CTA button -->
         <button
           class="vv-cta-btn"
+          data-cta="calificar"
           :class="{ 'vv-cta-btn--active': ctaUnlocked, 'vv-cta-btn--locked': !ctaUnlocked }"
           :disabled="!ctaUnlocked"
           @click="ctaUnlocked && (calendarOpen = true)"

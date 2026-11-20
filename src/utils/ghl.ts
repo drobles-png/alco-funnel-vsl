@@ -67,5 +67,5 @@ export function buildNota(
 // Incluye siempre la atribución (fbclid/UTMs/fbc/fbp); lo que llegue en `data` tiene prioridad.
 export async function trackStage(etapa: string, data: Record<string, unknown> & { event_id?: string }) {
   const event_id = data.event_id ?? generateEventId('view')
-  await postToWebhook(GHL_CONTACT_WEBHOOK, { etapa, event_id, ...getStoredFbParams(), ...data })
+  await postToWebhook(GHL_CONTACT_WEBHOOK, { etapa, event_id, url_pagina: window.location.href, ...getStoredFbParams(), ...data })
 }

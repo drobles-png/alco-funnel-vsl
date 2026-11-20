@@ -1,0 +1,23 @@
+[
+  {"goto": "/?fbclid=TEST_e2e&utm_source=facebook&utm_medium=paid&utm_campaign=TEST-e2e&utm_content=anuncio-test"},
+  {"click": "[data-cta=registro]"},
+  {"fill": {"[data-field=nombre]": "Test Bakano", "[data-field=apellido]": "Prueba Califica", "[data-field=email]": "prueba.califica@bakano-test.com", "[data-field=phone]": "0991112233", "[data-field=ciudad]": "Babahoyo"}},
+  {"select": {"[data-field=provincia]": "los_rios"}},
+  {"click": "form [type=submit]"},
+  {"wait_url": "**/ver-video"},
+  {"shot": "ver-video"},
+  {"click": "[data-cta=calificar]"},
+  {"click": "label:has(input[value=productor])"},
+  {"click": "label:has(input[value=otro])"},
+  {"fill": {"[data-field=cultivo_otro]": "Mango"}},
+  {"click_text": "Siguiente"},
+  {"click": "label:has(input[value=no_tengo])"},
+  {"click": "label:has(input[value=contado])"},
+  {"fill": {"[data-field=objetivo]": "Quiero fumigar mis hectáreas y las de mis vecinos con un dron propio este mismo año"}},
+  {"click": "[data-field=consent]"},
+  {"click": "form [type=submit]"},
+  {"wait_url": "**/agendar"},
+  {"booking_complete": true},
+  {"wait_url": "**/cita-confirmada"},
+  {"shot": "final"}
+]

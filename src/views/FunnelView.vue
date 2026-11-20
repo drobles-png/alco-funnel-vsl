@@ -186,7 +186,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div class="hero__cta">
-          <button class="btn btn--sun btn--lg" @click="openModal()">
+          <button class="btn btn--sun btn--lg" data-cta="registro" @click="openModal()">
             <i class="fa-solid fa-play" aria-hidden="true"></i>
             Ver el video completo
           </button>

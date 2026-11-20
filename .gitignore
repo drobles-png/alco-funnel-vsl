@@ -38,3 +38,4 @@ node-compile-cache/
 
 # Cache local del hook de diseño
 .impeccable/
+e2e-out/

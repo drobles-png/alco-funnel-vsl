@@ -196,6 +196,7 @@ const handleSubmit = async () => {
     etiquetas,
     tags: etiquetas,
     etapa: 'cualificacion',
+    url_pagina: window.location.href,
     nota,
     notas: nota,
     timestamp: new Date().toISOString(),
@@ -363,6 +364,7 @@ watch(
                   <label for="cal-cultivo-otro" class="cal-otro__label">¿Qué cultivo tienes?</label>
                   <input
                     id="cal-cultivo-otro"
+                    data-field="cultivo_otro"
                     v-model="cultivoOtro"
                     type="text"
                     class="cal-textarea cal-otro__input"
@@ -387,6 +389,7 @@ watch(
                 <div class="cal-textarea-wrap">
                   <textarea
                     v-model="objetivo"
+                    data-field="objetivo"
                     class="cal-textarea"
                     :class="{ error: touched && wordCount(objetivo) < MIN_WORDS }"
                     placeholder="Por ejemplo: quiero dar servicio a fincas de banano en mi zona y recuperar la inversión del dron en el primer año..."
@@ -408,7 +411,7 @@ watch(
 
 
                 <!-- Consent -->
-                <label class="cal-consent" :class="{ 'has-error': touched && !consent }">
+                <label class="cal-consent" data-field="consent" :class="{ 'has-error': touched && !consent }">
                   <input type="checkbox" v-model="consent" class="cal-sr" />
                   <span class="cal-consent__box" :class="{ checked: consent }" aria-hidden="true">
                     <svg
