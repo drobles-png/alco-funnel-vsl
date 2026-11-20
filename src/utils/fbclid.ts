@@ -65,8 +65,8 @@ export function captureFbParams(): void {
 
 /**
  * Retorna todos los parámetros de atribución almacenados en esta sesión.
- * fbp/fbc se completan con las cookies vivas: el Pixel carga async y en la
- * primera captura la cookie _fbp todavía no existe.
+ * fbc/fbp salen primero de las cookies del Pixel (_fbc/_fbp); lo guardado es el respaldo si el
+ * Pixel todavía no las creó o está bloqueado.
  */
 export function getStoredFbParams(): FbParams {
   let stored: FbParams = {
@@ -80,7 +80,8 @@ export function getStoredFbParams(): FbParams {
   } catch { /* ignorar */ }
   return {
     ...stored,
-    fbc: stored.fbc || getCookie('_fbc'),
-    fbp: stored.fbp || getCookie('_fbp'),
+    // Primero las cookies del Pixel: así navegador y CAPI mandan exactamente el mismo fbc
+    fbc: getCookie('_fbc') || stored.fbc,
+    fbp: getCookie('_fbp') || stored.fbp,
   }
 }
