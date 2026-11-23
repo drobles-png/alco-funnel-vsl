@@ -11,7 +11,7 @@ import { useRouter } from 'vue-router'
 import { getStoredFbParams } from '@/utils/fbclid'
 import { sendCapiEvent } from '@/utils/capi'
 import { buildNota } from '@/utils/ghl'
-import { useContactStore } from '@/stores/contact'
+import { pixelUserData, useContactStore } from '@/stores/contact'
 import { GHL_CONTACT_WEBHOOK, GHL_LOCAL_STUB, IS_LOCALHOST } from '@/config/alco'
 import { PROVINCIAS, provinciaLabel } from '@/utils/qualification'
 const router = useRouter()
@@ -309,6 +309,7 @@ const handleSubmit = async () => {
   await postToGhl(payload)
 
   // El contacto inicial todavía no es un lead calificado.
+  pixelUserData(payload)
   ;(window as any).fbq?.(
     'track',
     'CompleteRegistration',
